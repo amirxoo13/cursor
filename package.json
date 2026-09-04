@@ -1,0 +1,34 @@
+{
+  "name": "immigration-law-qa",
+  "version": "1.0.0",
+  "private": true,
+  "description": "پلتفرم پرسش‌وپاسخ قوانین مهاجرتی اروپا و آمریکا (RAG با Qwen3.8-Max)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "migrate": "tsx scripts/run-migration.ts",
+    "ingest:ecfr": "tsx scripts/ingest-ecfr.ts",
+    "ingest:federal-register": "tsx scripts/ingest-federal-register.ts",
+    "ingest:courtlistener": "tsx scripts/ingest-courtlistener.ts",
+    "ingest:eurlex": "tsx scripts/ingest-eurlex.ts",
+    "ingest:all": "npm run ingest:ecfr && npm run ingest:federal-register && npm run ingest:courtlistener && npm run ingest:eurlex"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "fast-xml-parser": "^4.5.1",
+    "gpt-tokenizer": "^2.6.2",
+    "next": "^14.2.18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "dotenv": "^16.4.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

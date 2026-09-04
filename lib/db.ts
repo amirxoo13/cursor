@@ -1,0 +1,79 @@
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
+
+// neon() یک تابع sql tagged-template برمی‌گرداند که روی HTTP کار می‌کند،
+// بنابراین هم در API routeهای Vercel و هم در اسکریپت‌های ingestion (Node) بدون
+// نیاز به connection pooling جداگانه کار می‌کند. مقداردهی به‌صورت lazy انجام
+// می‌شود تا importکردن این فایل (مثلاً در dry-run) بدون DATABASE_URL خطا ندهد؛
+// خطای واقعی فقط زمانی داده می‌شود که واقعاً بخواهیم کوئری بزنیم.
+let _sql: NeonQueryFunction<false, false> | null = null;
+
+function getSql(): NeonQueryFunction<false, false> {
+  if (_sql) return _sql;
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error(
+      "DATABASE_URL تنظیم نشده است. یک دیتابیس Neon Postgres بساز (با pgvector فعال) " +
+        "و مقدارش را در .env.local قرار بده — به .env.example نگاه کن."
+    );
+  }
+  _sql = neon(connectionString);
+  return _sql;
+}
+
+export const sql: NeonQueryFunction<false, false> = ((...args: any[]) =>
+  (getSql() as any)(...args)) as unknown as NeonQueryFunction<false, false>;
+
+export interface LegalDocumentRow {
+  id: number;
+  source: "ecfr" | "federal_register" | "courtlistener" | "eurlex";
+  jurisdiction: "US" | "EU";
+  country: string | null;
+  title: string | null;
+  section_reference: string | null;
+  full_text: string;
+  source_url: string | null;
+  last_updated: string;
+  distance?: number;
+}
+
+export interface InsertLegalDocument {
+  source: "ecfr" | "federal_register" | "courtlistener" | "eurlex";
+  jurisdiction: "US" | "EU";
+  country?: string | null;
+  title?: string | null;
+  sectionReference?: string | null;
+  fullText: string;
+  embedding: number[];
+  sourceUrl?: string | null;
+}
+
+function toVectorLiteral(embedding: number[]): string {
+  return `[${embedding.join(",")}]`;
+}
+
+export async function insertLegalDocument(doc: InsertLegalDocument) {
+  const vectorLiteral = toVectorLiteral(doc.embedding);
+  await sql`
+    INSERT INTO legal_documents
+      (source, jurisdiction, country, title, section_reference, full_text, embedding, source_url)
+    VALUES
+      (${doc.source}, ${doc.jurisdiction}, ${doc.country ?? null}, ${doc.title ?? null},
+       ${doc.sectionReference ?? null}, ${doc.fullText}, ${vectorLiteral}::vector, ${doc.sourceUrl ?? null})
+  `;
+}
+
+export async function searchSimilarDocuments(
+  embedding: number[],
+  limit = 8
+): Promise<LegalDocumentRow[]> {
+  const vectorLiteral = toVectorLiteral(embedding);
+  const rows = (await sql`
+    SELECT id, source, jurisdiction, country, title, section_reference, full_text,
+           source_url, last_updated,
+           embedding <=> ${vectorLiteral}::vector AS distance
+    FROM legal_documents
+    ORDER BY embedding <=> ${vectorLiteral}::vector
+    LIMIT ${limit}
+  `) as unknown as LegalDocumentRow[];
+  return rows;
+}
