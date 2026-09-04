@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { embedText } from "@/lib/embeddings";
 import { searchSimilarDocuments, type LegalDocumentRow } from "@/lib/db";
-import { qwenChat } from "@/lib/qwen";
+import { qwenChat, rewriteQueryForRetrieval } from "@/lib/qwen";
 
 export const runtime = "nodejs";
 
@@ -63,8 +63,35 @@ export async function POST(req: NextRequest) {
   const jurisdiction = body.jurisdiction === "US" || body.jurisdiction === "EU" ? body.jurisdiction : undefined;
 
   try {
-    const questionEmbedding = await embedText(question);
-    const retrievedDocs = await searchSimilarDocuments(questionEmbedding, 8, jurisdiction);
+    // منابع (eCFR، Federal Register، EUR-Lex و...) همه به انگلیسی‌اند. جست‌وجوی
+    // برداری مستقیم با سؤال محاوره‌ای فارسی معمولاً نتایج ضعیف‌تری می‌دهد (تست
+    // واقعی نشان داد رتبه‌ی سند صحیح می‌تواند از رتبه ۱۸ به رتبه ۱ برسد). به
+    // همین دلیل سؤال به چند عبارت جست‌وجوی انگلیسی با اصطلاحات حقوقی رسمی
+    // بازنویسی می‌شود (هر عبارت زاویه‌ی متفاوتی از سؤال را پوشش می‌دهد) و
+    // نتایج جست‌وجوی همه‌ی عبارت‌ها با هم ترکیب می‌شوند. اگر بازنویسی (که خودش
+    // یک فراخوانی واقعی Qwen است) شکست بخورد، به جست‌وجوی مستقیم با متن فارسی
+    // برمی‌گردیم — نه به داده‌ی جعلی.
+    let retrievalQueries: string[] = [question];
+    try {
+      retrievalQueries = await rewriteQueryForRetrieval(question);
+    } catch (rewriteErr) {
+      console.warn("بازنویسی کوئری برای جست‌وجو شکست خورد، از متن فارسی اصلی استفاده می‌شود:", rewriteErr);
+    }
+
+    const bestDistanceById = new Map<number, LegalDocumentRow>();
+    for (const query of retrievalQueries) {
+      const embedding = await embedText(query);
+      const results = await searchSimilarDocuments(embedding, 8, jurisdiction);
+      for (const doc of results) {
+        const existing = bestDistanceById.get(doc.id);
+        if (!existing || (doc.distance ?? Infinity) < (existing.distance ?? Infinity)) {
+          bestDistanceById.set(doc.id, doc);
+        }
+      }
+    }
+    const retrievedDocs = Array.from(bestDistanceById.values())
+      .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
+      .slice(0, 10);
 
     const prompt = SYSTEM_PROMPT_TEMPLATE.replace(
       "{{RETRIEVED_CHUNKS}}",

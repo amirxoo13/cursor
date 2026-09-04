@@ -54,3 +54,42 @@ export async function qwenChat(
   }
   return content;
 }
+
+const QUERY_REWRITE_SYSTEM_PROMPT = `You rewrite a user's Persian immigration-law question into 2-3 short English
+search phrases using the EXACT formal statutory/regulatory terminology that
+would literally appear in the text of immigration regulations, statutes, or
+case law — NOT colloquial terms and NOT a literal translation for a human
+reader. For example, prefer "immigrant petition for alien relative",
+"immediate relative classification", "family-sponsored preference immigrant",
+"adjustment of status", "withholding of removal" over informal words like
+"green card". Avoid the phrase "green card" entirely; use the precise legal
+term instead. Each phrase should emphasize a different angle of the question
+so that, together, they cover it well.
+Output ONLY the phrases, one per line, nothing else (no numbering, no quotes).`;
+
+/**
+ * سؤال فارسی کاربر را به چند عبارت جست‌وجوی انگلیسی با اصطلاحات حقوقی رسمی
+ * تبدیل می‌کند تا کیفیت جست‌وجوی برداری روی متن‌های انگلیسی (eCFR، EUR-Lex و...)
+ * بهتر شود. تست واقعی نشان داد یک عبارت تنها کافی نیست (مثلاً «green card»
+ * باعث گمراهی جست‌وجو می‌شود)، ولی ۲-۳ عبارت با اصطلاح دقیق قانونی و ترکیب
+ * نتایجشان، سند صحیح را با فاصله‌ی خیلی بهتر (و رتبه ۱) پیدا می‌کند.
+ * اگر این مرحله شکست بخورد، caller باید به جست‌وجوی مستقیم با متن فارسی
+ * برگردد — نه به داده‌ی جعلی.
+ */
+export async function rewriteQueryForRetrieval(persianQuestion: string): Promise<string[]> {
+  const raw = await qwenChat(
+    [
+      { role: "system", content: QUERY_REWRITE_SYSTEM_PROMPT },
+      { role: "user", content: persianQuestion },
+    ],
+    { temperature: 0.1 }
+  );
+  const phrases = raw
+    .split("\n")
+    .map((line) => line.trim().replace(/^[\d.\-)\s]+/, "").replace(/^["'«]|["'»]$/g, ""))
+    .filter(Boolean);
+  if (phrases.length === 0) {
+    throw new Error("بازنویسی کوئری چیزی برنگرداند");
+  }
+  return phrases;
+}
