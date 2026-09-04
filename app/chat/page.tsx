@@ -47,7 +47,8 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (turns.length === 0) return;
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [turns]);
 
   async function ask(question: string) {

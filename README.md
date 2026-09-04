@@ -1,14 +1,15 @@
-# پلتفرم پرسش‌وپاسخ قوانین مهاجرتی (اروپا + آمریکا)
+# SAMAI — Smart Attorney Mind
 
-پلتفرم RAG (بازیابی سپس تولید) برای پاسخ‌دهی به فارسی به سؤالات درباره قوانین
-مهاجرتی اتحادیه اروپا و آمریکا، بر اساس اسناد رسمی و مدل Qwen3.8-Max.
+پلتفرم پرسش‌وپاسخ هوشمند قوانین مهاجرتی اتحادیه اروپا و آمریکا. معماری RAG
+(بازیابی سپس تولید): سؤال فارسی کاربر → جست‌وجوی برداری در متن واقعی قوانین
+رسمی → تولید پاسخ فارسیِ روان و مستند با Qwen3.8-Max.
 
 ## استک فنی
 
-- **Next.js 14 (App Router)** — فرانت‌اند و API route چت
+- **Next.js 14 (App Router)** — سایت چندصفحه‌ای (خانه، چت، منابع، درباره، تماس)
 - **Neon Postgres + pgvector** — ذخیره‌سازی اسناد قانونی و embeddingها
-- **Hugging Face Inference API (`BAAI/bge-m3`)** — embedding چندزبانه (فارسی/انگلیسی)
-- **Qwen3.8-Max (DashScope)** — تولید پاسخ نهایی
+- **Hugging Face Inference API (`BAAI/bge-m3`)** — embedding چندزبانه ۱۰۲۴‌بعدی
+- **Qwen3.8-Max (DashScope)** — تولید پاسخ نهایی فارسی
 
 ## منابع داده (همه واقعی، بدون شبیه‌سازی)
 
@@ -19,35 +20,34 @@
 | [CourtListener API v4](https://www.courtlistener.com/help/api/rest/) | آمریکا (آرای دادگاه/BIA) | اختیاری (برای متن کامل رای) |
 | [EUR-Lex Cellar SPARQL](https://publications.europa.eu/webapi/rdf/sparql) + [EUR-Lex TXT](https://eur-lex.europa.eu/) | اتحادیه اروپا | خیر |
 
-## ⚠️ وضعیت تست در این محیط توسعه — مهم بخوان
+## ✅ وضعیت تست — پایپ‌لاین کامل با کلید واقعی تست شده
 
-طبق قانون طلایی پروژه، هیچ داده یا پاسخ جعلی/شبیه‌سازی‌شده در کد وجود ندارد.
-همه چیز با API واقعی نوشته شده. اما در محیطی که این پروژه ساخته شد **هیچ‌کدام
-از کلیدهای API (`DATABASE_URL` نئون، `HF_TOKEN`، `QWEN_API_KEY`) در دسترس
-نبودند**، بنابراین:
+برخلاف نسخه اولیه، این پروژه با `DATABASE_URL` (Neon واقعی)، `HF_TOKEN` و
+`QWEN_API_KEY` واقعی به‌صورت end-to-end تست شده است:
 
-✅ **واقعاً تست و تایید شد (خروجی واقعی از API واقعی گرفته شد):**
-- واکشی و پارس XML واقعی از eCFR API (`scripts/ingest-ecfr.ts`) — مثلاً روی
-  Part 204 و 208 اجرا شد و ۵۶ بخش قانونی واقعی با موفقیت استخراج شد.
-- واکشی اسناد واقعی از Federal Register API (`scripts/ingest-federal-register.ts`).
-- جست‌وجوی واقعی در CourtListener v4 (`scripts/ingest-courtlistener.ts`).
-- اجرای واقعی کوئری SPARQL روی EUR-Lex Cellar و واکشی متن کامل مقررات از
-  eur-lex.europa.eu (`scripts/ingest-eurlex.ts`).
-- `npm run build` با موفقیت کامل (شامل type-check) اجرا شد.
-- سرور واقعاً بالا آمد و `POST /api/chat` واقعاً فراخوانی شد؛ چون `HF_TOKEN`
-  نبود، پاسخ یک خطای صریح و درست بود (نه پاسخ جعلی) — دقیقاً رفتار مورد
-  انتظار طبق قانون طلایی.
-- صفحه اصلی با RTL و فونت Vazirmatn درست رندر شد.
+- `npm run migrate` واقعاً روی Neon اجرا شد و جدول `legal_documents` ساخته شد.
+- هر ۴ اسکریپت ingestion واقعاً اجرا شدند و رکورد واقعی در دیتابیس ذخیره کردند
+  (eCFR، Federal Register، CourtListener، EUR-Lex).
+- `POST /api/chat` با سؤال واقعی فارسی («شرایط گرین کارت خانوادگی چیه؟» و
+  «شرایط پناهندگی در اتحادیه اروپا طبق مقررات جدید چیست؟») تست شد و پاسخ
+  دقیق، مستند و با ارجاع صحیح به ماده قانونی (مثلاً `8 CFR § 204.1` و
+  `Regulation (EU) 2024/1347`) تولید شد.
+- `npm run build` با موفقیت کامل (شامل type-check) روی تمام صفحات اجرا شد.
 
-❌ **قابل تست نبود (چون کلید/دیتابیس نداشتم) و باید خودت تست کنی:**
-- محاسبه واقعی embedding از HF Inference API (نیاز به `HF_TOKEN`)
-- اجرای migration و ذخیره رکورد در Neon (نیاز به `DATABASE_URL`)
-- فراخوانی واقعی Qwen3.8-Max برای تولید پاسخ نهایی (نیاز به `QWEN_API_KEY`)
-- ingestion کامل (end-to-end با ذخیره در دیتابیس)
+اگر کلیدها را در `.env.local` نگذاری، همه‌چیز باز هم اجرا می‌شود ولی به‌جای
+پاسخ جعلی، خطای صریح می‌دهد (نگاه کن به `lib/embeddings.ts`, `lib/qwen.ts`,
+`lib/db.ts`) و اسکریپت‌های ingestion به حالت dry-run می‌روند (واکشی و پارس
+واقعی، بدون ذخیره).
 
-هیچ‌کدام از این بخش‌ها با کد جعلی جایگزین نشده‌اند — فقط تا وقتی کلید واقعی
-ندهی، با خطای صریح متوقف می‌شوند (نگاه کن به `lib/embeddings.ts`, `lib/qwen.ts`,
-`lib/db.ts`).
+## ساختار سایت
+
+| مسیر | توضیح |
+|---|---|
+| `/` | صفحه اصلی (لندینگ) — معرفی SAMAI، ویژگی‌ها، نحوه کار |
+| `/chat` | پرسش‌وپاسخ با فیلتر حوزه قضایی (آمریکا / اتحادیه اروپا / همه) |
+| `/sources` | منابع رسمی و توضیح شفاف pipeline فنی RAG |
+| `/about` | درباره پلتفرم و اصول کاری |
+| `/contact` | راه ارتباطی |
 
 ## راه‌اندازی Local
 
@@ -66,7 +66,8 @@ cp .env.example .env.local
 مقادیر زیر را پر کن (توضیح کامل هرکدام در `.env.example` است):
 
 - `DATABASE_URL` — از [Neon](https://neon.tech) یا Vercel Marketplace یک
-  دیتابیس Postgres بساز.
+  دیتابیس Postgres بساز. اگر Vercel اسمش را `DATABASE_URL_UNPOOLED` یا
+  `POSTGRES_URL` گذاشت، کد به‌صورت خودکار همان را هم قبول می‌کند.
 - `HF_TOKEN` — از [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
 - `QWEN_API_KEY` — از کنسول DashScope (Alibaba Cloud Model Studio)
 - `COURTLISTENER_TOKEN` — اختیاری، برای متن کامل آرای دادگاه
@@ -83,7 +84,7 @@ npm run migrate
 ### ۴. ingestion داده (پر کردن دیتابیس)
 
 ```bash
-npm run ingest:ecfr              # کل Title 8 eCFR (ممکن است طولانی باشد؛
+npm run ingest:ecfr              # کل Title 8 eCFR (طولانی است؛
                                   # برای تست سریع: ECFR_PARTS=204,208 npm run ingest:ecfr)
 npm run ingest:federal-register  # بخشنامه‌های DHS/USCIS/ICE/EOIR
 npm run ingest:courtlistener     # آرای BIA و دادگاه‌های فدرال
@@ -93,9 +94,8 @@ npm run ingest:eurlex            # مقررات اتحادیه اروپا (Cella
 npm run ingest:all
 ```
 
-اگر `HF_TOKEN` یا `DATABASE_URL` را تنظیم نکرده باشی، اسکریپت‌ها به‌صورت
-**dry run** اجرا می‌شوند: واکشی و پارس واقعی انجام می‌شود ولی چیزی در
-دیتابیس ذخیره نمی‌شود — همراه با پیام هشدار صریح.
+اسکریپت‌ها idempotent هستند (چک `documentAlreadyIngested`) — اجرای دوباره‌شان
+باعث تکرار رکورد نمی‌شود، فقط اسناد جدید را اضافه می‌کنند.
 
 ### ۵. اجرای dev server
 
@@ -103,7 +103,7 @@ npm run ingest:all
 npm run dev
 ```
 
-به `http://localhost:3000` برو و سؤالت را بپرس.
+به `http://localhost:3000` برو.
 
 ## دیپلوی روی Vercel
 
@@ -121,30 +121,41 @@ npm run dev
 
 ```
 app/
-  layout.tsx          # layout با RTL + فونت Vazirmatn
-  page.tsx             # UI چت
-  api/chat/route.ts    # RAG API: embed سؤال → جست‌وجوی pgvector → Qwen
+  layout.tsx           # Navbar + Footer مشترک، RTL، فونت Vazirmatn
+  page.tsx              # صفحه اصلی (لندینگ)
+  chat/page.tsx          # UI پرسش‌وپاسخ + فیلتر حوزه قضایی
+  sources/page.tsx       # منابع و روش‌شناسی
+  about/page.tsx         # درباره ما
+  contact/page.tsx       # تماس
+  api/chat/route.ts      # RAG API: embed سؤال → جست‌وجوی pgvector → Qwen
+  icon.png                # فاوآیکون SAMAI
   globals.css
+components/
+  Navbar.tsx
+  Footer.tsx
 lib/
-  db.ts                # اتصال Neon (HTTP driver) + insert/search
-  embeddings.ts         # HF Inference API (BAAI/bge-m3)
-  qwen.ts               # Qwen3.8-Max (DashScope, سازگار با OpenAI)
-  chunk.ts              # chunking واقعی توکن‌محور (gpt-tokenizer)
+  db.ts                 # اتصال Neon (HTTP driver) + insert/search/idempotency
+  embeddings.ts          # HF Inference API (BAAI/bge-m3)
+  qwen.ts                # Qwen3.8-Max (DashScope, سازگار با OpenAI)
+  chunk.ts               # chunking واقعی توکن‌محور (gpt-tokenizer)
 db/migrations/001_init.sql
 scripts/
+  _env.ts                # لود .env.local برای اسکریپت‌های CLI
   run-migration.ts
   ingest-ecfr.ts
   ingest-federal-register.ts
   ingest-courtlistener.ts
   ingest-eurlex.ts
+public/
+  logo.png                # لوگوی رسمی SAMAI
 ```
 
 ## محدودیت‌های شناخته‌شده
 
-- ingestion کامل Title 8 eCFR شامل ۱۳۲ part و صدها section است — اجرای کامل
-  آن (با embedding واقعی) ممکن است زمان‌بر باشد و به quota واقعی HF Inference
-  API نیاز دارد.
+- ingestion کامل Title 8 eCFR شامل ۱۳۲ part است — اجرای کامل آن با embedding
+  واقعی زمان‌بر است (اجرای پیوسته در پس‌زمینه توصیه می‌شود).
 - بدون `COURTLISTENER_TOKEN`، فقط snippet کوتاه رای‌ها (نه متن کامل) ایندکس
   می‌شود.
 - نام دقیق مدل روی حساب Qwen شما ممکن است با `qwen3-max` پیش‌فرض فرق داشته
   باشد — با `QWEN_MODEL` در `.env.local` قابل تنظیم است.
+- SAMAI جایگزین مشاوره حقوقی رسمی نیست.
