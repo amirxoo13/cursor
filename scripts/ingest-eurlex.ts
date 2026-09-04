@@ -34,9 +34,28 @@ interface EurlexWork {
   title: string;
 }
 
-async function runSparqlQuery(): Promise<EurlexWork[]> {
+// «پیمان جدید مهاجرت و پناهندگی اتحادیه اروپا» (EU Pact on Migration and
+// Asylum) — از ۱۲ ژوئن ۲۰۲۶ لازم‌الاجرا شده. برخی از این ۹ سند هنوز در Cellar
+// با directory-code «Asylum policy»/«Immigration» برچسب‌گذاری نشده‌اند (تست
+// واقعی SPARQL نشان داد Screening Regulation و Eurodac Regulation هیچ
+// directory-code ثبت‌شده‌ای ندارند)، پس کوئری اکتشافی به‌تنهایی آن‌ها را از
+// دست می‌دهد. به همین دلیل این لیست شناخته‌شده و پایدار (CELEX واقعی) همیشه
+// جداگانه واکشی می‌شود تا پوشش کامل Pact تضمین شود.
+const KNOWN_PACT_CELEX = [
+  "32024R1347", // Qualification Regulation
+  "32024R1348", // Asylum Procedure Regulation (APR)
+  "32024R1349", // Return Border Procedure Regulation
+  "32024R1350", // Union Resettlement Framework
+  "32024R1351", // Asylum and Migration Management Regulation (AMMR)
+  "32024R1356", // Screening Regulation
+  "32024R1358", // Eurodac Regulation
+  "32024R1359", // Crisis and Force Majeure Regulation
+  "32024L1346", // Reception Conditions Directive (recast)
+];
+
+async function runSparql(query: string): Promise<any[]> {
   const url = new URL(SPARQL_ENDPOINT);
-  url.searchParams.set("query", SPARQL_QUERY);
+  url.searchParams.set("query", query);
   url.searchParams.set("format", "application/sparql-results+json");
 
   const res = await fetch(url.toString(), {
@@ -46,10 +65,41 @@ async function runSparqlQuery(): Promise<EurlexWork[]> {
     throw new Error(`EUR-Lex SPARQL endpoint با خطای ${res.status} پاسخ داد`);
   }
   const data = await res.json();
-  return data.results.bindings.map((b: any) => ({
+  return data.results.bindings;
+}
+
+async function runSparqlQuery(): Promise<EurlexWork[]> {
+  const bindings = await runSparql(SPARQL_QUERY);
+  return bindings.map((b: any) => ({
     celex: b.celex.value as string,
     title: b.title.value as string,
   }));
+}
+
+async function fetchTitleForCelex(celex: string): Promise<string | null> {
+  const query = `
+PREFIX cdm: <http://publications.europa.eu/ontology/cdm#>
+SELECT ?title WHERE {
+  ?work cdm:resource_legal_id_celex ?celex .
+  FILTER(STR(?celex) = "${celex}")
+  ?expr cdm:expression_belongs_to_work ?work .
+  ?expr cdm:expression_uses_language <http://publications.europa.eu/resource/authority/language/ENG> .
+  ?expr cdm:expression_title ?title .
+}
+LIMIT 1
+`;
+  const bindings = await runSparql(query);
+  return bindings[0]?.title?.value ?? null;
+}
+
+async function fetchKnownPactWorks(): Promise<EurlexWork[]> {
+  const works: EurlexWork[] = [];
+  for (const celex of KNOWN_PACT_CELEX) {
+    const title = await fetchTitleForCelex(celex);
+    if (title) works.push({ celex, title });
+    else console.warn(`  ⚠ عنوان برای CELEX شناخته‌شده ${celex} پیدا نشد (ممکن است هنوز در Cellar کامل نشده باشد)`);
+  }
+  return works;
 }
 
 function stripHtml(html: string): string {
@@ -77,8 +127,17 @@ async function main() {
   const dryRun = !process.env.HF_TOKEN || !process.env.DATABASE_URL;
 
   console.log("در حال اجرای کوئری واقعی SPARQL روی EUR-Lex Cellar...");
-  const works = await runSparqlQuery();
-  console.log(`  تعداد سند قانونی پیدا‌شده: ${works.length}`);
+  const discovered = await runSparqlQuery();
+  console.log(`  تعداد سند قانونی پیدا‌شده از کوئری directory-code: ${discovered.length}`);
+
+  console.log("در حال واکشی تضمینی ۹ سند اصلی Pact on Migration and Asylum...");
+  const pactWorks = await fetchKnownPactWorks();
+  console.log(`  ${pactWorks.length} سند از Pact پیدا شد`);
+
+  const byCelex = new Map<string, EurlexWork>();
+  for (const w of [...discovered, ...pactWorks]) byCelex.set(w.celex, w);
+  const works = Array.from(byCelex.values());
+  console.log(`  مجموع اسناد یکتا برای پردازش: ${works.length}`);
 
   if (dryRun) {
     console.log(
