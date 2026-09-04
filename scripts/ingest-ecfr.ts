@@ -1,8 +1,8 @@
-import "dotenv/config";
+import "./_env";
 import { XMLParser } from "fast-xml-parser";
 import { chunkText } from "../lib/chunk";
 import { embedText } from "../lib/embeddings";
-import { insertLegalDocument } from "../lib/db";
+import { insertLegalDocument, documentAlreadyIngested } from "../lib/db";
 
 const VERSIONER_BASE = "https://ecfr.federalregister.gov/api/versioner/v1";
 
@@ -135,6 +135,12 @@ async function main() {
     console.log(`  part ${part}: ${sections.length} بخش (section)`);
 
     for (const section of sections) {
+      const sourceUrl = `https://www.ecfr.gov/current/title-8/section-${section.sectionNumber}`;
+
+      if (!dryRun && (await documentAlreadyIngested("ecfr", sourceUrl))) {
+        continue; // قبلاً ایندکس شده (مثلاً در اجرای قبلی) — رد می‌شود
+      }
+
       const chunks = chunkText(section.text, 500, 50);
       totalChunks += chunks.length;
 
@@ -150,7 +156,7 @@ async function main() {
           sectionReference: `8 CFR § ${section.sectionNumber}`,
           fullText: chunk.text,
           embedding,
-          sourceUrl: `https://www.ecfr.gov/current/title-8/section-${section.sectionNumber}`,
+          sourceUrl,
         });
         totalStored++;
       }

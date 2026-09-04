@@ -1,7 +1,7 @@
-import "dotenv/config";
+import "./_env";
 import { chunkText } from "../lib/chunk";
 import { embedText } from "../lib/embeddings";
-import { insertLegalDocument } from "../lib/db";
+import { insertLegalDocument, documentAlreadyIngested } from "../lib/db";
 
 const SPARQL_ENDPOINT = "https://publications.europa.eu/webapi/rdf/sparql";
 
@@ -90,6 +90,11 @@ async function main() {
   let totalStored = 0;
 
   for (const work of works) {
+    const sourceUrl = `https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:${work.celex}`;
+    if (!dryRun && (await documentAlreadyIngested("eurlex", sourceUrl))) {
+      continue; // قبلاً ایندکس شده
+    }
+
     console.log(`  CELEX ${work.celex}: ${work.title.slice(0, 70)}...`);
     const bodyText = await fetchDocumentText(work.celex);
     if (!bodyText || bodyText.length < 200) {
@@ -112,7 +117,7 @@ async function main() {
         sectionReference: `CELEX ${work.celex}`,
         fullText: chunk.text,
         embedding,
-        sourceUrl: `https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:${work.celex}`,
+        sourceUrl,
       });
       totalStored++;
     }

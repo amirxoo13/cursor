@@ -1,7 +1,7 @@
-import "dotenv/config";
+import "./_env";
 import { chunkText } from "../lib/chunk";
 import { embedText } from "../lib/embeddings";
-import { insertLegalDocument } from "../lib/db";
+import { insertLegalDocument, documentAlreadyIngested } from "../lib/db";
 
 const API_BASE = "https://www.federalregister.gov/api/v1/documents.json";
 
@@ -102,6 +102,10 @@ async function main() {
   let totalStored = 0;
 
   for (const doc of docs) {
+    if (!dryRun && (await documentAlreadyIngested("federal_register", doc.html_url))) {
+      continue; // قبلاً ایندکس شده
+    }
+
     console.log(`  سند: ${doc.title.slice(0, 70)}... (${doc.document_number})`);
     const bodyText = await fetchBodyText(doc);
     const fullText = `${doc.title}. ${bodyText}`;

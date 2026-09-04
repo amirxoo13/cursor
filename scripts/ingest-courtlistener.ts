@@ -1,7 +1,7 @@
-import "dotenv/config";
+import "./_env";
 import { chunkText } from "../lib/chunk";
 import { embedText } from "../lib/embeddings";
-import { insertLegalDocument } from "../lib/db";
+import { insertLegalDocument, documentAlreadyIngested } from "../lib/db";
 
 const SEARCH_URL = "https://www.courtlistener.com/api/rest/v4/search/";
 const OPINION_URL = (id: number) =>
@@ -115,6 +115,11 @@ async function main() {
     const opinion = result.opinions?.[0];
     if (!opinion) continue;
 
+    const sourceUrl = `https://www.courtlistener.com${result.absolute_url}`;
+    if (!dryRun && (await documentAlreadyIngested("courtlistener", sourceUrl))) {
+      continue; // قبلاً ایندکس شده
+    }
+
     const fullText = (await fetchOpinionFullText(opinion.id, token)) || opinion.snippet || "";
     if (!fullText || fullText.length < 50) continue;
 
@@ -139,7 +144,7 @@ async function main() {
         sectionReference: citation || result.court,
         fullText: chunk.text,
         embedding,
-        sourceUrl: `https://www.courtlistener.com${result.absolute_url}`,
+        sourceUrl,
       });
       totalStored++;
     }
