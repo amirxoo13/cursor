@@ -5,7 +5,7 @@ export default function Footer() {
   return (
     <footer style={{ borderTop: "1px solid var(--border-soft)", marginTop: 80 }}>
       <div
-        className="container"
+        className="container footer-grid"
         style={{
           padding: "48px 24px 28px",
           display: "grid",
@@ -77,6 +77,15 @@ export default function Footer() {
         © {new Date().getFullYear()} SAMAI — Smart Attorney Mind. پاسخ‌های این پلتفرم جایگزین
         مشاوره حقوقی رسمی نیستند.
       </div>
+
+      <style>{`
+        @media (max-width: 760px) {
+          .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 28px !important; }
+        }
+        @media (max-width: 480px) {
+          .footer-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </footer>
   );
 }
