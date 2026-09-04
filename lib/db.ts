@@ -9,7 +9,14 @@ let _sql: NeonQueryFunction<false, false> | null = null;
 
 function getSql(): NeonQueryFunction<false, false> {
   if (_sql) return _sql;
-  const connectionString = process.env.DATABASE_URL;
+  // یکپارچه‌سازی Vercel Marketplace با Neon گاهی به‌جای DATABASE_URL نام‌های
+  // دیگری مثل DATABASE_URL_UNPOOLED یا POSTGRES_URL می‌سازد؛ چون درایور HTTP
+  // این پکیج نیازی به connection pooling ندارد، هرکدام که موجود باشد کار می‌کند.
+  const connectionString =
+    process.env.DATABASE_URL ||
+    process.env.DATABASE_URL_UNPOOLED ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_URL_NON_POOLING;
   if (!connectionString) {
     throw new Error(
       "DATABASE_URL تنظیم نشده است. یک دیتابیس Neon Postgres بساز (با pgvector فعال) " +
