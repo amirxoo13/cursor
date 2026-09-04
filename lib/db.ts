@@ -9,7 +9,14 @@ let _sql: NeonQueryFunction<false, false> | null = null;
 
 function getSql(): NeonQueryFunction<false, false> {
   if (_sql) return _sql;
-  const connectionString = process.env.DATABASE_URL;
+  // یکپارچه‌سازی Vercel Marketplace با Neon گاهی به‌جای DATABASE_URL نام‌های
+  // دیگری مثل DATABASE_URL_UNPOOLED یا POSTGRES_URL می‌سازد؛ چون درایور HTTP
+  // این پکیج نیازی به connection pooling ندارد، هرکدام که موجود باشد کار می‌کند.
+  const connectionString =
+    process.env.DATABASE_URL ||
+    process.env.DATABASE_URL_UNPOOLED ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_URL_NON_POOLING;
   if (!connectionString) {
     throw new Error(
       "DATABASE_URL تنظیم نشده است. یک دیتابیس Neon Postgres بساز (با pgvector فعال) " +
@@ -62,18 +69,47 @@ export async function insertLegalDocument(doc: InsertLegalDocument) {
   `;
 }
 
+/**
+ * قبل از embedding/insert چک می‌کند که آیا این سند (بر اساس source + source_url)
+ * قبلاً ایندکس شده یا نه — تا اجرای دوباره‌ی اسکریپت‌های ingestion (مثلاً بعد از
+ * قطعی موقت HF API) باعث تکرار رکورد نشود و embedding call بیخودی هدر نرود.
+ */
+export async function documentAlreadyIngested(
+  source: string,
+  sourceUrl: string | null | undefined
+): Promise<boolean> {
+  if (!sourceUrl) return false;
+  const rows = (await sql`
+    SELECT 1 FROM legal_documents WHERE source = ${source} AND source_url = ${sourceUrl} LIMIT 1
+  `) as unknown as any[];
+  return rows.length > 0;
+}
+
 export async function searchSimilarDocuments(
   embedding: number[],
-  limit = 8
+  limit = 8,
+  jurisdiction?: "US" | "EU"
 ): Promise<LegalDocumentRow[]> {
   const vectorLiteral = toVectorLiteral(embedding);
-  const rows = (await sql`
-    SELECT id, source, jurisdiction, country, title, section_reference, full_text,
-           source_url, last_updated,
-           embedding <=> ${vectorLiteral}::vector AS distance
-    FROM legal_documents
-    ORDER BY embedding <=> ${vectorLiteral}::vector
-    LIMIT ${limit}
-  `) as unknown as LegalDocumentRow[];
+  const rows = (
+    jurisdiction
+      ? await sql`
+          SELECT id, source, jurisdiction, country, title, section_reference, full_text,
+                 source_url, last_updated,
+                 embedding <=> ${vectorLiteral}::vector AS distance
+          FROM legal_documents
+          WHERE jurisdiction = ${jurisdiction}
+          ORDER BY embedding <=> ${vectorLiteral}::vector
+          LIMIT ${limit}
+        `
+      : await sql`
+          SELECT id, source, jurisdiction, country, title, section_reference, full_text,
+                 source_url, last_updated,
+                 embedding <=> ${vectorLiteral}::vector AS distance
+          FROM legal_documents
+          ORDER BY embedding <=> ${vectorLiteral}::vector
+          LIMIT ${limit}
+        `
+  ) as unknown as LegalDocumentRow[];
   return rows;
 }

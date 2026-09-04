@@ -23,6 +23,7 @@ const SYSTEM_PROMPT_TEMPLATE = `تو یک دستیار متخصص قوانین �
 
 interface ChatRequestBody {
   question?: string;
+  jurisdiction?: "US" | "EU";
 }
 
 export interface ChatResponseSource {
@@ -59,10 +60,11 @@ export async function POST(req: NextRequest) {
   if (!question) {
     return NextResponse.json({ error: "فیلد question الزامی است" }, { status: 400 });
   }
+  const jurisdiction = body.jurisdiction === "US" || body.jurisdiction === "EU" ? body.jurisdiction : undefined;
 
   try {
     const questionEmbedding = await embedText(question);
-    const retrievedDocs = await searchSimilarDocuments(questionEmbedding, 8);
+    const retrievedDocs = await searchSimilarDocuments(questionEmbedding, 8, jurisdiction);
 
     const prompt = SYSTEM_PROMPT_TEMPLATE.replace(
       "{{RETRIEVED_CHUNKS}}",

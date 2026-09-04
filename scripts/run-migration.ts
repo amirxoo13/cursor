@@ -1,10 +1,14 @@
-import "dotenv/config";
+import "./_env";
 import fs from "node:fs";
 import path from "node:path";
 import { neon } from "@neondatabase/serverless";
 
 async function main() {
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString =
+    process.env.DATABASE_URL ||
+    process.env.DATABASE_URL_UNPOOLED ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_URL_NON_POOLING;
   if (!connectionString) {
     console.error(
       "❌ DATABASE_URL تنظیم نشده است. به .env.example نگاه کن و یک دیتابیس Neon " +
@@ -20,10 +24,15 @@ async function main() {
   );
   const migrationSql = fs.readFileSync(migrationPath, "utf-8");
 
-  const statements = migrationSql
+  const sqlWithoutComments = migrationSql
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("--"))
+    .join("\n");
+
+  const statements = sqlWithoutComments
     .split(";")
     .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("--"));
+    .filter((s) => s.length > 0);
 
   console.log(`در حال اجرای migration روی Neon Postgres (${statements.length} دستور)...`);
   for (const statement of statements) {

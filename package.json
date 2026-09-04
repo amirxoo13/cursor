@@ -1,8 +1,8 @@
 {
-  "name": "immigration-law-qa",
+  "name": "samai",
   "version": "1.0.0",
   "private": true,
-  "description": "پلتفرم پرسش‌وپاسخ قوانین مهاجرتی اروپا و آمریکا (RAG با Qwen3.8-Max)",
+  "description": "SAMAI (Smart Attorney Mind) — پلتفرم پرسش‌وپاسخ قوانین مهاجرتی اروپا و آمریکا (RAG با Qwen3.8-Max)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

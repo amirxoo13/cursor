@@ -1,253 +1,225 @@
-"use client";
+import Link from "next/link";
+import Image from "next/image";
 
-import { useState, useRef, useEffect } from "react";
-import type { ChatResponseSource } from "./api/chat/route";
-
-interface ChatTurn {
-  question: string;
-  answer?: string;
-  sources?: ChatResponseSource[];
-  error?: string;
-  loading?: boolean;
-}
-
-const SUGGESTED_QUESTIONS = [
-  "شرایط گرین کارت خانوادگی چیه؟",
-  "برای پناهندگی در آلمان چه مدارکی لازمه؟",
-  "مهلت اعتراض به رد درخواست ویزا در آمریکا چقدره؟",
+const FEATURES = [
+  {
+    title: "بازیابی از اسناد رسمی",
+    desc: "پاسخ‌ها بر پایه متن واقعی eCFR، Federal Register، آرای CourtListener و مقررات EUR-Lex ساخته می‌شوند، نه حدس مدل زبانی.",
+    icon: "📚",
+  },
+  {
+    title: "ارجاع دقیق به ماده قانونی",
+    desc: "زیر هر پاسخ، مستقیم به شماره ماده یا بخش قانونی منبع (مثلاً 8 CFR § 204.1) اشاره می‌شود تا قابل بررسی باشد.",
+    icon: "§",
+  },
+  {
+    title: "فارسیِ روان، نه ترجمه ماشینی",
+    desc: "خروجی نهایی با Qwen3.8-Max به فارسیِ طبیعی و قابل‌فهم نوشته می‌شود، متناسب با لحن رسمی یا محاوره‌ای سؤال شما.",
+    icon: "🗣️",
+  },
+  {
+    title: "پوشش دو حوزه قضایی",
+    desc: "هم قوانین مهاجرتی فدرال آمریکا و هم مقررات اتحادیه اروپا در یک پلتفرم، با تفکیک شفاف حوزه قضایی هر پاسخ.",
+    icon: "🌍",
+  },
+  {
+    title: "جست‌وجوی برداری واقعی",
+    desc: "embedding چندزبانه (BAAI/bge-m3) و جست‌وجوی شباهت برداری روی pgvector، نه جست‌وجوی کلیدواژه‌ای ساده.",
+    icon: "🧭",
+  },
+  {
+    title: "شفافیت کامل",
+    desc: "اگر اطلاعات کافی در منابع بازیابی‌شده نباشد، SAMAI صادقانه می‌گوید و حدس نمی‌زند.",
+    icon: "🛡️",
+  },
 ];
 
-const jurisdictionLabel: Record<string, string> = {
-  US: "آمریکا",
-  EU: "اتحادیه اروپا",
-};
+const STEPS = [
+  {
+    n: "۱",
+    title: "بازیابی",
+    desc: "سؤال شما embed می‌شود و مرتبط‌ترین بخش‌های قانونی از میان اسناد ایندکس‌شده پیدا می‌شوند.",
+  },
+  {
+    n: "۲",
+    title: "تحلیل",
+    desc: "متن‌های بازیابی‌شده همراه با سؤال شما در اختیار Qwen3.8-Max قرار می‌گیرد.",
+  },
+  {
+    n: "۳",
+    title: "پاسخ مستند",
+    desc: "پاسخی کامل، دقیق و به فارسی روان تولید می‌شود؛ همراه با لینک مستقیم به منبع رسمی هر ادعا.",
+  },
+];
 
-const sourceLabel: Record<string, string> = {
-  ecfr: "eCFR",
-  federal_register: "Federal Register",
-  courtlistener: "CourtListener",
-  eurlex: "EUR-Lex",
-};
+const SOURCES = ["eCFR", "Federal Register", "CourtListener", "EUR-Lex"];
 
-export default function Home() {
-  const [input, setInput] = useState("");
-  const [turns, setTurns] = useState<ChatTurn[]>([]);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [turns]);
-
-  async function ask(question: string) {
-    if (!question.trim()) return;
-    setInput("");
-    setTurns((prev) => [...prev, { question, loading: true }]);
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
-      });
-      const data = await res.json();
-
-      setTurns((prev) => {
-        const next = [...prev];
-        const idx = next.length - 1;
-        if (!res.ok) {
-          next[idx] = { question, error: data.error || "خطای ناشناخته" };
-        } else {
-          next[idx] = { question, answer: data.answer, sources: data.sources };
-        }
-        return next;
-      });
-    } catch (err: any) {
-      setTurns((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = { question, error: err?.message || "خطای شبکه" };
-        return next;
-      });
-    }
-  }
-
+export default function HomePage() {
   return (
-    <main
-      style={{
-        maxWidth: 820,
-        margin: "0 auto",
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        padding: "0 16px",
-      }}
-    >
-      <header style={{ padding: "24px 0 16px", borderBottom: "1px solid var(--border)" }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>
-          پرسش‌وپاسخ قوانین مهاجرتی
-        </h1>
-        <p style={{ color: "var(--text-dim)", fontSize: 14, marginTop: 6 }}>
-          سؤال‌های خودت درباره قوانین مهاجرتی اتحادیه اروپا و آمریکا رو بپرس — پاسخ‌ها
-          بر اساس متن‌های رسمی (eCFR، Federal Register، CourtListener، EUR-Lex) تولید می‌شن.
-        </p>
-      </header>
-
-      <div style={{ flex: 1, padding: "24px 0", display: "flex", flexDirection: "column", gap: 20 }}>
-        {turns.length === 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <p style={{ color: "var(--text-dim)", fontSize: 14 }}>چند نمونه سؤال:</p>
-            {SUGGESTED_QUESTIONS.map((q) => (
-              <button
-                key={q}
-                onClick={() => ask(q)}
-                style={{
-                  textAlign: "right",
-                  background: "var(--bg-elevated)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 10,
-                  padding: "12px 14px",
-                  color: "var(--text)",
-                  cursor: "pointer",
-                  fontSize: 14,
-                }}
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {turns.map((turn, i) => (
-          <div key={i} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div
+    <main>
+      {/* HERO */}
+      <section className="section" style={{ paddingTop: 72 }}>
+        <div className="container hero-grid" style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 48, alignItems: "center" }}>
+          <div>
+            <span className="eyebrow">⚖️ دستیار حقوقی هوشمند مهاجرت</span>
+            <h1
               style={{
-                alignSelf: "flex-end",
-                background: "var(--user-bubble)",
-                color: "white",
-                borderRadius: "14px 14px 2px 14px",
-                padding: "10px 14px",
-                maxWidth: "85%",
-                fontSize: 15,
+                fontSize: "clamp(32px, 5vw, 52px)",
+                fontWeight: 800,
+                lineHeight: 1.25,
+                margin: "22px 0 18px",
               }}
             >
-              {turn.question}
+              <span className="gradient-text">SAMAI</span> — ذهن هوشمند وکالت
+              <br />
+              برای قوانین مهاجرتی اروپا و آمریکا
+            </h1>
+            <p style={{ color: "var(--text-dim)", fontSize: 17, lineHeight: 2, maxWidth: 540 }}>
+              سؤال‌های خودت را درباره گرین کارت، پناهندگی، ویزا و آیین دادرسی
+              مهاجرت به فارسی بپرس. SAMAI با جست‌وجو در متن واقعی قوانین رسمی
+              اتحادیه اروپا و آمریکا، پاسخی دقیق و مستند به تو می‌دهد.
+            </p>
+            <div style={{ display: "flex", gap: 14, marginTop: 32, flexWrap: "wrap" }}>
+              <Link href="/chat" className="btn btn-primary">
+                شروع پرسش ←
+              </Link>
+              <Link href="/sources" className="btn btn-ghost">
+                مشاهده منابع رسمی
+              </Link>
             </div>
 
-            {turn.loading && (
-              <div style={{ color: "var(--text-dim)", fontSize: 14 }}>در حال جست‌وجو در منابع رسمی و تولید پاسخ...</div>
-            )}
-
-            {turn.error && (
-              <div
-                style={{
-                  background: "rgba(239,68,68,0.1)",
-                  border: "1px solid var(--danger)",
-                  color: "#fca5a5",
-                  borderRadius: 10,
-                  padding: "12px 14px",
-                  fontSize: 14,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                خطا: {turn.error}
-              </div>
-            )}
-
-            {turn.answer && (
-              <div
-                style={{
-                  alignSelf: "flex-start",
-                  background: "var(--assistant-bubble)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "14px 14px 14px 2px",
-                  padding: "14px 16px",
-                  maxWidth: "95%",
-                  fontSize: 15,
-                  lineHeight: 1.9,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {turn.answer}
-
-                {turn.sources && turn.sources.length > 0 && (
-                  <div style={{ marginTop: 14, borderTop: "1px solid var(--border)", paddingTop: 10 }}>
-                    <div style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 6 }}>
-                      منابع:
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {turn.sources.map((s) => (
-                        <a
-                          key={s.id}
-                          href={s.sourceUrl ?? undefined}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{
-                            fontSize: 12,
-                            color: "var(--accent)",
-                            textDecoration: "none",
-                          }}
-                        >
-                          [{sourceLabel[s.source] ?? s.source} · {jurisdictionLabel[s.jurisdiction] ?? s.jurisdiction}]{" "}
-                          {s.sectionReference || s.title || "منبع"}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            <div style={{ display: "flex", gap: 10, marginTop: 40, flexWrap: "wrap" }}>
+              {SOURCES.map((s) => (
+                <span
+                  key={s}
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--text-faint)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 999,
+                    padding: "6px 14px",
+                  }}
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
           </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          ask(input);
-        }}
-        style={{
-          position: "sticky",
-          bottom: 0,
-          background: "var(--bg)",
-          padding: "16px 0",
-          display: "flex",
-          gap: 8,
-          borderTop: "1px solid var(--border)",
-        }}
-      >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="سؤالت را درباره قوانین مهاجرتی بنویس..."
+          <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "radial-gradient(circle, rgba(52,214,232,0.18), transparent 65%)",
+                filter: "blur(10px)",
+              }}
+            />
+            <Image
+              src="/logo.png"
+              alt="SAMAI — Smart Attorney Mind"
+              width={340}
+              height={340}
+              style={{
+                position: "relative",
+                borderRadius: "50%",
+                boxShadow: "0 0 0 1px rgba(217,178,92,0.35), 0 30px 80px -20px rgba(0,0,0,0.7)",
+              }}
+              priority
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURES */}
+      <section className="section" style={{ background: "var(--bg-soft)", borderTop: "1px solid var(--border-soft)", borderBottom: "1px solid var(--border-soft)" }}>
+        <div className="container">
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <span className="eyebrow">چرا SAMAI</span>
+            <h2 style={{ fontSize: 30, fontWeight: 800, marginTop: 16 }}>
+              دستیاری که مستند صحبت می‌کند
+            </h2>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 20,
+            }}
+            className="feature-grid"
+          >
+            {FEATURES.map((f) => (
+              <div key={f.title} className="card" style={{ padding: 26 }}>
+                <div style={{ fontSize: 26, marginBottom: 14 }}>{f.icon}</div>
+                <h3 style={{ fontSize: 16.5, fontWeight: 700, marginBottom: 10 }}>{f.title}</h3>
+                <p style={{ color: "var(--text-dim)", fontSize: 14, lineHeight: 1.9 }}>{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section className="section">
+        <div className="container">
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <span className="eyebrow">روش کار</span>
+            <h2 style={{ fontSize: 30, fontWeight: 800, marginTop: 16 }}>
+              از سؤال تا پاسخِ مستند، در سه گام
+            </h2>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }} className="feature-grid">
+            {STEPS.map((s) => (
+              <div key={s.n} style={{ position: "relative", padding: "0 4px" }}>
+                <div
+                  style={{
+                    fontSize: 42,
+                    fontWeight: 900,
+                    color: "transparent",
+                    WebkitTextStroke: "1.5px var(--gold-dim)",
+                    marginBottom: 10,
+                  }}
+                >
+                  {s.n}
+                </div>
+                <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>{s.title}</h3>
+                <p style={{ color: "var(--text-dim)", fontSize: 14, lineHeight: 1.9 }}>{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="section" style={{ paddingTop: 20 }}>
+        <div
+          className="container"
           style={{
-            flex: 1,
-            background: "var(--bg-elevated)",
+            background: "linear-gradient(135deg, rgba(217,178,92,0.12), rgba(52,214,232,0.08))",
             border: "1px solid var(--border)",
-            borderRadius: 10,
-            padding: "12px 14px",
-            color: "var(--text)",
-            fontSize: 15,
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            background: "var(--accent)",
-            color: "white",
-            border: "none",
-            borderRadius: 10,
-            padding: "0 20px",
-            fontSize: 15,
-            cursor: "pointer",
+            borderRadius: 26,
+            padding: "56px 40px",
+            textAlign: "center",
           }}
         >
-          پرسیدن
-        </button>
-      </form>
+          <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 14 }}>
+            سؤال حقوقی مهاجرتی داری؟
+          </h2>
+          <p style={{ color: "var(--text-dim)", marginBottom: 28, fontSize: 15 }}>
+            همین حالا از SAMAI بپرس و پاسخ مستند به منابع رسمی را دریافت کن.
+          </p>
+          <Link href="/chat" className="btn btn-primary">
+            رفتن به پرسش‌وپاسخ ←
+          </Link>
+        </div>
+      </section>
 
-      <footer style={{ padding: "0 0 20px", textAlign: "center", fontSize: 12, color: "var(--text-dim)" }}>
-        این پاسخ‌ها جایگزین مشاوره حقوقی رسمی نیستند.
-      </footer>
+      <style>{`
+        @media (max-width: 900px) {
+          .feature-grid { grid-template-columns: 1fr !important; }
+          .hero-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </main>
   );
 }
