@@ -30,10 +30,22 @@ function getSql(): NeonQueryFunction<false, false> {
 export const sql: NeonQueryFunction<false, false> = ((...args: any[]) =>
   (getSql() as any)(...args)) as unknown as NeonQueryFunction<false, false>;
 
+export type LegalSource =
+  | "ecfr"
+  | "federal_register"
+  | "courtlistener"
+  | "eurlex"
+  | "hudoc"
+  | "euaa"
+  | "de_law"
+  | "emn";
+
+export type Jurisdiction = "US" | "EU" | "DE" | "FR" | "IT" | "ES" | "NL" | "AT" | "BE" | "SE";
+
 export interface LegalDocumentRow {
   id: number;
-  source: "ecfr" | "federal_register" | "courtlistener" | "eurlex";
-  jurisdiction: "US" | "EU";
+  source: LegalSource;
+  jurisdiction: Jurisdiction;
   country: string | null;
   title: string | null;
   section_reference: string | null;
@@ -44,8 +56,8 @@ export interface LegalDocumentRow {
 }
 
 export interface InsertLegalDocument {
-  source: "ecfr" | "federal_register" | "courtlistener" | "eurlex";
-  jurisdiction: "US" | "EU";
+  source: LegalSource;
+  jurisdiction: Jurisdiction;
   country?: string | null;
   title?: string | null;
   sectionReference?: string | null;
@@ -88,7 +100,7 @@ export async function documentAlreadyIngested(
 export async function searchSimilarDocuments(
   embedding: number[],
   limit = 8,
-  jurisdiction?: "US" | "EU"
+  jurisdiction?: Jurisdiction
 ): Promise<LegalDocumentRow[]> {
   const vectorLiteral = toVectorLiteral(embedding);
   const rows = (

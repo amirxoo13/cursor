@@ -31,6 +31,7 @@ const JURISDICTIONS: { key: Jurisdiction; label: string }[] = [
 const jurisdictionLabel: Record<string, string> = {
   US: "آمریکا",
   EU: "اتحادیه اروپا",
+  DE: "آلمان",
 };
 
 const sourceLabel: Record<string, string> = {
@@ -38,6 +39,10 @@ const sourceLabel: Record<string, string> = {
   federal_register: "Federal Register",
   courtlistener: "CourtListener",
   eurlex: "EUR-Lex",
+  hudoc: "HUDOC (ECHR)",
+  euaa: "EUAA",
+  de_law: "Gesetze im Internet",
+  emn: "EMN",
 };
 
 export default function ChatPage() {
