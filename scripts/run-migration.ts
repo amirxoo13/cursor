@@ -18,28 +18,30 @@ async function main() {
   }
 
   const sql = neon(connectionString);
-  const migrationPath = path.join(
-    process.cwd(),
-    "db/migrations/001_init.sql"
-  );
-  const migrationSql = fs.readFileSync(migrationPath, "utf-8");
+  const migrationsDir = path.join(process.cwd(), "db/migrations");
+  const files = fs
+    .readdirSync(migrationsDir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
 
-  const sqlWithoutComments = migrationSql
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("--"))
-    .join("\n");
+  for (const file of files) {
+    const migrationSql = fs.readFileSync(path.join(migrationsDir, file), "utf-8");
+    const sqlWithoutComments = migrationSql
+      .split("\n")
+      .filter((line) => !line.trim().startsWith("--"))
+      .join("\n");
+    const statements = sqlWithoutComments
+      .split(";")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
 
-  const statements = sqlWithoutComments
-    .split(";")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-
-  console.log(`در حال اجرای migration روی Neon Postgres (${statements.length} دستور)...`);
-  for (const statement of statements) {
-    console.log(`  ▶ ${statement.slice(0, 80).replace(/\s+/g, " ")}...`);
-    await sql(statement);
+    console.log(`\nدر حال اجرای ${file} (${statements.length} دستور)...`);
+    for (const statement of statements) {
+      console.log(`  ▶ ${statement.slice(0, 80).replace(/\s+/g, " ")}...`);
+      await sql(statement);
+    }
   }
-  console.log("✅ migration با موفقیت اجرا شد: جدول legal_documents و ایندکس hnsw ساخته شدند.");
+  console.log("\n✅ همه migrationها با موفقیت اجرا شدند.");
 }
 
 main().catch((err) => {

@@ -23,8 +23,36 @@ const SOURCES = [
   {
     name: "EUR-Lex",
     full: "پایگاه رسمی حقوق اتحادیه اروپا (از طریق Cellar SPARQL endpoint)",
-    desc: "مقررات و دستورالعمل‌های در حال اجرای اتحادیه اروپا درباره پناهندگی و مهاجرت (Directory codes 191030 و 191040).",
+    desc: "مقررات و دستورالعمل‌های در حال اجرای اتحادیه اروپا درباره پناهندگی و مهاجرت، شامل هر ۹ سند «پیمان جدید مهاجرت و پناهندگی» (لازم‌الاجرا از ۱۲ ژوئن ۲۰۲۶).",
     url: "https://eur-lex.europa.eu",
+    jurisdiction: "اتحادیه اروپا",
+  },
+  {
+    name: "HUDOC (ECHR)",
+    full: "بانک آرای دادگاه اروپایی حقوق بشر",
+    desc: "آرای واقعی مرتبط با اخراج، دیپورت، پناهندگی و بازداشت مهاجرتی (مواد ۳، ۵، ۸ و ۱۳ کنوانسیون اروپایی حقوق بشر).",
+    url: "https://hudoc.echr.coe.int",
+    jurisdiction: "اتحادیه اروپا",
+  },
+  {
+    name: "EUAA Case Law Database",
+    full: "پایگاه آرای قضایی ملی کشورهای عضو درباره پناهندگی (European Union Agency for Asylum)",
+    desc: "خلاصه انگلیسی آرای دادگاه‌های ملی (آلمان، هلند، فرانسه، اسپانیا، لهستان و...) درباره اجرای مقررات جدید پناهندگی اتحادیه اروپا.",
+    url: "https://caselaw.euaa.europa.eu",
+    jurisdiction: "اتحادیه اروپا",
+  },
+  {
+    name: "Gesetze im Internet",
+    full: "پایگاه رسمی قوانین فدرال آلمان (وزارت دادگستری آلمان)",
+    desc: "متن کامل Aufenthaltsgesetz (قانون اقامت)، Asylgesetz (قانون پناهندگی)، Staatsangehörigkeitsgesetz (قانون تابعیت) و سایر مقررات ملی آلمان.",
+    url: "https://www.gesetze-im-internet.de",
+    jurisdiction: "آلمان",
+  },
+  {
+    name: "EMN",
+    full: "شبکه مهاجرت اروپا (European Migration Network) — کمیسیون اروپا",
+    desc: "گزارش «Asylum and Migration Overview 2025» — تحلیل جامع تحولات قانونی و سیاستی مهاجرت و پناهندگی اتحادیه اروپا در سال ۲۰۲۵.",
+    url: "https://home-affairs.ec.europa.eu/networks/european-migration-network-emn_en",
     jurisdiction: "اتحادیه اروپا",
   },
 ];
@@ -32,7 +60,7 @@ const SOURCES = [
 const PIPELINE = [
   {
     title: "Ingestion",
-    desc: "اسکریپت‌های اختصاصی هر منبع را به‌صورت واقعی فراخوانی می‌کنند: eCFR API (XML)، Federal Register API، CourtListener v4 و کوئری SPARQL روی EUR-Lex Cellar.",
+    desc: "اسکریپت‌های اختصاصی هر منبع را به‌صورت واقعی فراخوانی می‌کنند: eCFR API (XML)، Federal Register API، CourtListener v4، کوئری SPARQL روی EUR-Lex Cellar، HUDOC، EUAA، قوانین رسمی XML آلمان، و استخراج متن PDF گزارش‌های EMN.",
   },
   {
     title: "Chunking",
@@ -134,8 +162,9 @@ export default function SourcesPage() {
           محدودیت‌های شناخته‌شده
         </h3>
         <ul style={{ fontSize: 13.5, color: "var(--text-dim)", lineHeight: 2, paddingRight: 18, margin: 0 }}>
-          <li>پوشش کامل Title 8 eCFR در حال گسترش تدریجی است.</li>
           <li>متن کامل آرای CourtListener نیازمند توکن API است؛ بدون آن از خلاصه (snippet) استفاده می‌شود.</li>
+          <li>قوانین ملی فعلاً فقط برای آلمان ایندکس شده‌اند؛ سایر کشورهای عضو در حال بررسی برای افزودن هستند.</li>
+          <li>پایگاه EUAA به‌دلیل نبود API عمومی، از طریق اسکن شناسه سند اسکن می‌شود و فقط بازه‌ای از جدیدترین آرا را پوشش می‌دهد.</li>
           <li>SAMAI جایگزین مشاوره حقوقی رسمی نیست و برای تصمیم‌های حقوقی حتماً با وکیل مشورت کنید.</li>
         </ul>
       </div>
