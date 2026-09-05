@@ -55,6 +55,85 @@ export async function qwenChat(
   return content;
 }
 
+/**
+ * مثل qwenChat ولی به‌صورت استریم (SSE واقعی از DashScope) — برای اینکه کاربر
+ * اولین تکه‌های پاسخ را طی ۱-۲ ثانیه ببیند، نه اینکه ~۱۵-۲۰ ثانیه صفحه خالی
+ * بماند تا کل پاسخ آماده شود. تست واقعی نشان داد DashScope با stream:true یک
+ * text/event-stream واقعی برمی‌گرداند (نه شبیه‌سازی‌شده در سمت ما).
+ */
+export async function qwenChatStream(
+  messages: ChatMessage[],
+  options: { temperature?: number } = {}
+): Promise<ReadableStream<Uint8Array>> {
+  if (!QWEN_API_KEY) {
+    throw new Error(
+      "QWEN_API_KEY تنظیم نشده است. کلید را از کنسول Alibaba Cloud Model Studio " +
+        "(DashScope) بگیر و در .env.local قرار بده — به .env.example نگاه کن."
+    );
+  }
+
+  const res = await fetch(`${QWEN_BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${QWEN_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: QWEN_MODEL,
+      messages,
+      temperature: options.temperature ?? 0.3,
+      stream: true,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(
+      `Qwen API با خطا مواجه شد (status ${res.status}, model=${QWEN_MODEL}): ${body.slice(0, 500)}`
+    );
+  }
+  if (!res.body) {
+    throw new Error("پاسخ استریم از Qwen API بدنه‌ای نداشت");
+  }
+
+  const upstreamReader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buffer = "";
+
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const { done, value } = await upstreamReader.read();
+      if (done) {
+        controller.close();
+        return;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const payload = trimmed.slice(5).trim();
+        if (payload === "[DONE]") continue;
+        try {
+          const json = JSON.parse(payload);
+          const delta = json?.choices?.[0]?.delta?.content;
+          if (typeof delta === "string" && delta.length > 0) {
+            controller.enqueue(encoder.encode(delta));
+          }
+        } catch {
+          // خط ناقص JSON بین دو chunk شبکه بریده شده — نادیده گرفته می‌شود،
+          // چون بخش باقی‌مانده در buffer نگه داشته شده و در pull بعدی کامل می‌شود
+        }
+      }
+    },
+    cancel() {
+      upstreamReader.cancel();
+    },
+  });
+}
+
 const QUERY_REWRITE_SYSTEM_PROMPT = `You rewrite a user's Persian immigration-law question into 2-3 short English
 search phrases using the EXACT formal statutory/regulatory terminology that
 would literally appear in the text of immigration regulations, statutes, or
