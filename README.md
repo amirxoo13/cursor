@@ -19,6 +19,10 @@
 | [Federal Register API](https://www.federalregister.gov/developers/documentation/api/v1) | آمریکا | خیر |
 | [CourtListener API v4](https://www.courtlistener.com/help/api/rest/) | آمریکا (آرای دادگاه/BIA) | اختیاری (برای متن کامل رای) |
 | [EUR-Lex Cellar SPARQL](https://publications.europa.eu/webapi/rdf/sparql) + [EUR-Lex TXT](https://eur-lex.europa.eu/) | اتحادیه اروپا | خیر |
+| [HUDOC](https://hudoc.echr.coe.int) — آرای دادگاه اروپایی حقوق بشر | اتحادیه اروپا/شورای اروپا | خیر |
+| [EUAA Case Law Database](https://caselaw.euaa.europa.eu) — آرای ملی پناهندگی | اتحادیه اروپا (۲۷+ کشور) | خیر |
+| [Gesetze im Internet](https://www.gesetze-im-internet.de) — قوانین ملی آلمان | آلمان | خیر |
+| [EMN](https://home-affairs.ec.europa.eu/networks/european-migration-network-emn_en) — گزارش Asylum and Migration Overview | اتحادیه اروپا | خیر |
 
 ## ✅ وضعیت تست — پایپ‌لاین کامل با کلید واقعی تست شده
 
@@ -26,8 +30,9 @@
 `QWEN_API_KEY` واقعی به‌صورت end-to-end تست شده است:
 
 - `npm run migrate` واقعاً روی Neon اجرا شد و جدول `legal_documents` ساخته شد.
-- هر ۴ اسکریپت ingestion واقعاً اجرا شدند و رکورد واقعی در دیتابیس ذخیره کردند
-  (eCFR، Federal Register، CourtListener، EUR-Lex).
+- هر ۸ اسکریپت ingestion واقعاً اجرا شدند و رکورد واقعی در دیتابیس ذخیره کردند
+  (eCFR، Federal Register، CourtListener، EUR-Lex، HUDOC، EUAA Case Law،
+  قوانین ملی آلمان، گزارش EMN).
 - `POST /api/chat` با سؤال واقعی فارسی («شرایط گرین کارت خانوادگی چیه؟» و
   «شرایط پناهندگی در اتحادیه اروپا طبق مقررات جدید چیست؟») تست شد و پاسخ
   دقیق، مستند و با ارجاع صحیح به ماده قانونی (مثلاً `8 CFR § 204.1` و
@@ -88,7 +93,11 @@ npm run ingest:ecfr              # کل Title 8 eCFR (طولانی است؛
                                   # برای تست سریع: ECFR_PARTS=204,208 npm run ingest:ecfr)
 npm run ingest:federal-register  # بخشنامه‌های DHS/USCIS/ICE/EOIR
 npm run ingest:courtlistener     # آرای BIA و دادگاه‌های فدرال
-npm run ingest:eurlex            # مقررات اتحادیه اروپا (Cellar SPARQL)
+npm run ingest:eurlex            # مقررات اتحادیه اروپا (Cellar SPARQL) — شامل کل Pact 2024
+npm run ingest:hudoc             # آرای دادگاه اروپایی حقوق بشر (اخراج/پناهندگی/بازداشت)
+npm run ingest:euaa              # پایگاه آرای ملی پناهندگی EUAA (اسکن شناسه CaseLawID)
+npm run ingest:de-law            # قوانین ملی آلمان (AufenthG، AsylG، StAG و...)
+npm run ingest:emn               # گزارش PDF واقعی EMN Asylum and Migration Overview 2025
 
 # یا همه با هم:
 npm run ingest:all
@@ -138,14 +147,20 @@ lib/
   embeddings.ts          # HF Inference API (BAAI/bge-m3)
   qwen.ts                # Qwen3.8-Max (DashScope, سازگار با OpenAI)
   chunk.ts               # chunking واقعی توکن‌محور (gpt-tokenizer)
-db/migrations/001_init.sql
+db/migrations/
+  001_init.sql
+  002_add_sources.sql    # افزودن source های hudoc/euaa/de_law/emn
 scripts/
   _env.ts                # لود .env.local برای اسکریپت‌های CLI
-  run-migration.ts
+  run-migration.ts       # همه‌ی فایل‌های db/migrations را به ترتیب اجرا می‌کند
   ingest-ecfr.ts
   ingest-federal-register.ts
   ingest-courtlistener.ts
-  ingest-eurlex.ts
+  ingest-eurlex.ts        # شامل واکشی تضمینی ۹ سند Pact on Migration and Asylum
+  ingest-hudoc.ts
+  ingest-euaa.ts
+  ingest-de-law.ts
+  ingest-emn.ts
 public/
   logo.png                # لوگوی رسمی SAMAI
 ```
@@ -156,6 +171,12 @@ public/
   واقعی زمان‌بر است (اجرای پیوسته در پس‌زمینه توصیه می‌شود).
 - بدون `COURTLISTENER_TOKEN`، فقط snippet کوتاه رای‌ها (نه متن کامل) ایندکس
   می‌شود.
+- پایگاه EUAA به‌دلیل نبود API عمومی از طریق اسکن شناسه عددی (CaseLawID)
+  واکشی می‌شود، نه یک لیست کامل — فقط بازه‌ای پیکربندی‌شده از جدیدترین آرا
+  پوشش داده می‌شود (`EUAA_ID_START`/`EUAA_ID_END`).
+- قوانین ملی فعلاً فقط برای آلمان پیاده‌سازی شده (نه هر ۲۷ کشور عضو).
+- fetch بومی Node.js گاهی از gesetze-im-internet.de با ۵۰۳ مواجه می‌شود؛
+  اسکریپت به‌صورت خودکار به `curl` سیستم (که باید نصب باشد) fallback می‌کند.
 - نام دقیق مدل روی حساب Qwen شما ممکن است با `qwen3-max` پیش‌فرض فرق داشته
   باشد — با `QWEN_MODEL` در `.env.local` قابل تنظیم است.
 - SAMAI جایگزین مشاوره حقوقی رسمی نیست.
