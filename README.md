@@ -23,6 +23,8 @@
 | [EUAA Case Law Database](https://caselaw.euaa.europa.eu) — آرای ملی پناهندگی | اتحادیه اروپا (۲۷+ کشور) | خیر |
 | [Gesetze im Internet](https://www.gesetze-im-internet.de) — قوانین ملی آلمان | آلمان | خیر |
 | [EMN](https://home-affairs.ec.europa.eu/networks/european-migration-network-emn_en) — گزارش Asylum and Migration Overview | اتحادیه اروپا | خیر |
+| [wetten.overheid.nl](https://wetten.overheid.nl) — قوانین ملی هلند | هلند | خیر |
+| [BOE](https://www.boe.es) — قوانین ملی اسپانیا | اسپانیا | خیر |
 
 ## ✅ وضعیت تست — پایپ‌لاین کامل با کلید واقعی تست شده
 
@@ -30,9 +32,13 @@
 `QWEN_API_KEY` واقعی به‌صورت end-to-end تست شده است:
 
 - `npm run migrate` واقعاً روی Neon اجرا شد و جدول `legal_documents` ساخته شد.
-- هر ۸ اسکریپت ingestion واقعاً اجرا شدند و رکورد واقعی در دیتابیس ذخیره کردند
-  (eCFR، Federal Register، CourtListener، EUR-Lex، HUDOC، EUAA Case Law،
-  قوانین ملی آلمان، گزارش EMN).
+- هر ۱۰ اسکریپت ingestion واقعاً اجرا شدند و رکورد واقعی در دیتابیس ذخیره
+  کردند (eCFR، Federal Register، CourtListener، EUR-Lex، HUDOC، EUAA Case
+  Law، قوانین ملی آلمان/هلند/اسپانیا، گزارش EMN).
+- پاسخ‌ها با لحن دوستانه و عامیانه («سام»، شخصیت دستیار SAMAI) تولید
+  می‌شوند، نه لحن رسمی/ماشینی — با همان دقت و ارجاع به منبع قانونی.
+- چت یک انتخابگر واقعی کشور دارد (`lib/countries.ts`) که مستقیماً روی
+  ستون `country` در pgvector فیلتر می‌کند، نه فقط حوزه قضایی کلی.
 - `POST /api/chat` با سؤال واقعی فارسی («شرایط گرین کارت خانوادگی چیه؟» و
   «شرایط پناهندگی در اتحادیه اروپا طبق مقررات جدید چیست؟») تست شد و پاسخ
   دقیق، مستند و با ارجاع صحیح به ماده قانونی (مثلاً `8 CFR § 204.1` و
@@ -49,7 +55,7 @@
 | مسیر | توضیح |
 |---|---|
 | `/` | صفحه اصلی (لندینگ) — معرفی SAMAI، ویژگی‌ها، نحوه کار |
-| `/chat` | پرسش‌وپاسخ با فیلتر حوزه قضایی (آمریکا / اتحادیه اروپا / همه) |
+| `/chat` | پرسش‌وپاسخ با انتخابگر کشور (آمریکا، آلمان، هلند، اسپانیا، همه یا هرکدام از ۳۰+ کشوری که آرای قضایی برایشان ایندکس شده) |
 | `/sources` | منابع رسمی و توضیح شفاف pipeline فنی RAG |
 | `/about` | درباره پلتفرم و اصول کاری |
 | `/contact` | راه ارتباطی |
@@ -98,6 +104,8 @@ npm run ingest:hudoc             # آرای دادگاه اروپایی حقوق
 npm run ingest:euaa              # پایگاه آرای ملی پناهندگی EUAA (اسکن شناسه CaseLawID)
 npm run ingest:de-law            # قوانین ملی آلمان (AufenthG، AsylG، StAG و...)
 npm run ingest:emn               # گزارش PDF واقعی EMN Asylum and Migration Overview 2025
+npm run ingest:nl-law            # قوانین ملی هلند (Vw2000، Vb2000، RWN)
+npm run ingest:es-law            # قوانین ملی اسپانیا (LOEX، Real Decreto 557/2011)
 
 # یا همه با هم:
 npm run ingest:all
@@ -150,6 +158,7 @@ lib/
 db/migrations/
   001_init.sql
   002_add_sources.sql    # افزودن source های hudoc/euaa/de_law/emn
+  003_add_more_countries.sql  # افزودن nl_law/es_law
 scripts/
   _env.ts                # لود .env.local برای اسکریپت‌های CLI
   run-migration.ts       # همه‌ی فایل‌های db/migrations را به ترتیب اجرا می‌کند
@@ -161,6 +170,9 @@ scripts/
   ingest-euaa.ts
   ingest-de-law.ts
   ingest-emn.ts
+  ingest-nl-law.ts
+  ingest-es-law.ts
+  normalize-countries.ts  # یک‌بار مصرف: یکسان‌سازی کد کشور (ISO2) بین منابع
 public/
   logo.png                # لوگوی رسمی SAMAI
 ```
@@ -174,7 +186,11 @@ public/
 - پایگاه EUAA به‌دلیل نبود API عمومی از طریق اسکن شناسه عددی (CaseLawID)
   واکشی می‌شود، نه یک لیست کامل — فقط بازه‌ای پیکربندی‌شده از جدیدترین آرا
   پوشش داده می‌شود (`EUAA_ID_START`/`EUAA_ID_END`).
-- قوانین ملی فعلاً فقط برای آلمان پیاده‌سازی شده (نه هر ۲۷ کشور عضو).
+- متن کامل قوانین ملی فعلاً فقط برای آلمان، هلند و اسپانیا پیاده‌سازی شده
+  (نه هر ۲۷ کشور عضو). سایر کشورها فقط از طریق آرای HUDOC/EUAA پوشش دارند.
+  فرانسه (Légifrance) پشت محافظت ضدربات Cloudflare است و بدون دور زدن آن
+  (که انجام نمی‌دهیم) قابل ingestion خودکار نیست؛ ایتالیا (Normattiva) یک
+  endpoint AKN/XML دارد که نیاز به بررسی بیشتر برای استخراج پایدار دارد.
 - fetch بومی Node.js گاهی از gesetze-im-internet.de با ۵۰۳ مواجه می‌شود؛
   اسکریپت به‌صورت خودکار به `curl` سیستم (که باید نصب باشد) fallback می‌کند.
 - نام دقیق مدل روی حساب Qwen شما ممکن است با `qwen3-max` پیش‌فرض فرق داشته
