@@ -1,9 +1,10 @@
 export const LAWYER = {
-  fullNameFa: "سیداکبر موسوی",
+  fullNameFa: "دکتر سیداکبر موسوی",
   firstNameFa: "سیداکبر",
   lastNameFa: "موسوی",
-  fullNameEn: "Seyed Akbar Mousavi",
+  fullNameEn: "Dr. Seyed Akbar Mousavi",
   title: "وکیل پایه یک دادگستری، عضو کانون وکلای مرکز",
+  bookTitle: "قوانین خاص (حقوقی و کیفری)",
   licenseNumber: "12361",
   phone: "09122168512",
   phoneIntl: "+989122168512",

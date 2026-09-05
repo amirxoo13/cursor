@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { LAWYER } from "@/lib/contact";
 
 const FEATURES = [
   {
@@ -61,6 +62,16 @@ export default function HomePage() {
       <section className="section" style={{ paddingTop: 72 }}>
         <div className="container hero-grid" style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 48, alignItems: "center" }}>
           <div>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: "var(--gold-light)",
+                marginBottom: 14,
+              }}
+            >
+              موسسه حقوقی سام ({LAWYER.fullNameFa})
+            </div>
             <span className="eyebrow">⚖️ دستیار حقوقی هوشمند مهاجرت</span>
             <h1
               style={{

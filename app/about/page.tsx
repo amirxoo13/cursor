@@ -58,6 +58,37 @@ export default function AboutPage() {
         </div>
       </div>
 
+      <div
+        className="card book-card"
+        style={{
+          padding: 28,
+          marginBottom: 40,
+          display: "flex",
+          gap: 28,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <Image
+          src="/book-special-laws.png"
+          alt={LAWYER.bookTitle}
+          width={160}
+          height={226}
+          style={{ flexShrink: 0, filter: "drop-shadow(0 18px 34px rgba(0,0,0,0.45))" }}
+        />
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ fontSize: 12.5, color: "var(--gold-light)", fontWeight: 700, marginBottom: 8 }}>
+            نویسنده کتاب
+          </div>
+          <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 10 }}>{LAWYER.bookTitle}</h3>
+          <p style={{ fontSize: 14, color: "var(--text-dim)", lineHeight: 1.9 }}>
+            {LAWYER.fullNameFa} علاوه بر فعالیت وکالتی، نویسنده کتاب «{LAWYER.bookTitle}»
+            است — مرجعی برای قوانین و مقررات اعلامی اسکودا و مرکز وکلای قوه
+            قضاییه، بر اساس آخرین آگهی پذیرش آزمون ورودی کارآموزی وکالت.
+          </p>
+        </div>
+      </div>
+
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>چشم‌انداز</h2>
       <p style={{ color: "var(--text-dim)", fontSize: 14.5, lineHeight: 2, marginBottom: 28 }}>
         قوانین مهاجرتی معمولاً پیچیده، پراکنده در چند منبع رسمی، و به زبانی
