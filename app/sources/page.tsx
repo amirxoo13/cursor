@@ -55,6 +55,20 @@ const SOURCES = [
     url: "https://home-affairs.ec.europa.eu/networks/european-migration-network-emn_en",
     jurisdiction: "اتحادیه اروپا",
   },
+  {
+    name: "wetten.overheid.nl",
+    full: "پایگاه رسمی قوانین هلند (دولت هلند)",
+    desc: "متن کامل Vreemdelingenwet 2000 (قانون اتباع بیگانه)، Vreemdelingenbesluit 2000 (آیین‌نامه اجرایی) و Rijkswet op het Nederlanderschap (قانون تابعیت هلند).",
+    url: "https://wetten.overheid.nl",
+    jurisdiction: "هلند",
+  },
+  {
+    name: "BOE",
+    full: "روزنامه رسمی دولت اسپانیا (Boletín Oficial del Estado)",
+    desc: "متن کامل Ley Orgánica 4/2000 (قانون حقوق اتباع بیگانه اسپانیا) و آیین‌نامه اجرایی آن (Real Decreto 557/2011).",
+    url: "https://www.boe.es",
+    jurisdiction: "اسپانیا",
+  },
 ];
 
 const PIPELINE = [
@@ -163,7 +177,12 @@ export default function SourcesPage() {
         </h3>
         <ul style={{ fontSize: 13.5, color: "var(--text-dim)", lineHeight: 2, paddingRight: 18, margin: 0 }}>
           <li>متن کامل آرای CourtListener نیازمند توکن API است؛ بدون آن از خلاصه (snippet) استفاده می‌شود.</li>
-          <li>قوانین ملی فعلاً فقط برای آلمان ایندکس شده‌اند؛ سایر کشورهای عضو در حال بررسی برای افزودن هستند.</li>
+          <li>
+            متن کامل قوانین ملی فعلاً فقط برای آلمان، هلند و اسپانیا ایندکس شده
+            (بقیه‌ی کشورهای عضو فقط از طریق آرای HUDOC/EUAA پوشش دارند، نه متن
+            کامل قانون). فرانسه به‌خاطر محافظت ضدربات Cloudflare سایت رسمی‌اش
+            فعلاً قابل ایندکس خودکار نیست.
+          </li>
           <li>پایگاه EUAA به‌دلیل نبود API عمومی، از طریق اسکن شناسه سند اسکن می‌شود و فقط بازه‌ای از جدیدترین آرا را پوشش می‌دهد.</li>
           <li>SAMAI جایگزین مشاوره حقوقی رسمی نیست و برای تصمیم‌های حقوقی حتماً با وکیل مشورت کنید.</li>
         </ul>

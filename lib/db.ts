@@ -38,7 +38,9 @@ export type LegalSource =
   | "hudoc"
   | "euaa"
   | "de_law"
-  | "emn";
+  | "emn"
+  | "nl_law"
+  | "es_law";
 
 export type Jurisdiction = "US" | "EU";
 

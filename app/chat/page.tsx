@@ -28,7 +28,7 @@ function flagEmoji(iso2: string): string {
 
 // اول گزینه‌های عمومی، بعد کشورهایی که واقعاً در دیتابیس داده دارند
 // (مرتب‌شده با اولویت پوشش بیشتر: آمریکا و آلمان اول)
-const PRIORITY_COUNTRIES = ["US", "DE"];
+const PRIORITY_COUNTRIES = ["US", "DE", "NL", "ES"];
 const COUNTRY_OPTIONS = [
   { value: "ALL", label: "🌍 همه کشورها" },
   ...PRIORITY_COUNTRIES.map((c) => ({ value: c, label: `${flagEmoji(c)} ${COUNTRY_LABEL_FA[c]}` })),
@@ -52,6 +52,8 @@ const sourceLabel: Record<string, string> = {
   euaa: "EUAA",
   de_law: "Gesetze im Internet",
   emn: "EMN",
+  nl_law: "wetten.overheid.nl",
+  es_law: "BOE",
 };
 
 export default function ChatPage() {

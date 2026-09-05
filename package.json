@@ -17,7 +17,9 @@
     "ingest:euaa": "tsx scripts/ingest-euaa.ts",
     "ingest:de-law": "tsx scripts/ingest-de-law.ts",
     "ingest:emn": "tsx scripts/ingest-emn.ts",
-    "ingest:all": "npm run ingest:ecfr && npm run ingest:federal-register && npm run ingest:courtlistener && npm run ingest:eurlex && npm run ingest:hudoc && npm run ingest:euaa && npm run ingest:de-law && npm run ingest:emn"
+    "ingest:nl-law": "tsx scripts/ingest-nl-law.ts",
+    "ingest:es-law": "tsx scripts/ingest-es-law.ts",
+    "ingest:all": "npm run ingest:ecfr && npm run ingest:federal-register && npm run ingest:courtlistener && npm run ingest:eurlex && npm run ingest:hudoc && npm run ingest:euaa && npm run ingest:de-law && npm run ingest:emn && npm run ingest:nl-law && npm run ingest:es-law"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
