@@ -2,6 +2,7 @@ import "./_env";
 import { chunkText } from "../lib/chunk";
 import { embedText } from "../lib/embeddings";
 import { insertLegalDocument, documentAlreadyIngested } from "../lib/db";
+import { normalizeCountry } from "../lib/countries";
 
 const BASE = "https://caselaw.euaa.europa.eu";
 
@@ -59,7 +60,7 @@ async function fetchCase(id: number): Promise<EuaaCase | null> {
     title,
     text: `${title}. ${body}`,
     ecli: ecliMatch ? ecliMatch[0] : null,
-    country: referenceMatch ? referenceMatch[1] : null,
+    country: normalizeCountry(referenceMatch ? referenceMatch[1] : null),
   };
 }
 
