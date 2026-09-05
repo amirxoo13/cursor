@@ -2,6 +2,7 @@ import "./_env";
 import { chunkText } from "../lib/chunk";
 import { embedText } from "../lib/embeddings";
 import { insertLegalDocument, documentAlreadyIngested } from "../lib/db";
+import { normalizeCountry } from "../lib/countries";
 
 const QUERY_ENDPOINT = "https://hudoc.echr.coe.int/app/query/results";
 const CONTENT_ENDPOINT = "https://hudoc.echr.coe.int/app/conversion/docx/html/body";
@@ -102,7 +103,7 @@ async function main() {
       await insertLegalDocument({
         source: "hudoc",
         jurisdiction: "EU",
-        country: r.respondent || null,
+        country: normalizeCountry(r.respondent),
         title: r.docname,
         sectionReference: `ECHR ${r.article ? `Art. ${r.article.split(";")[0]}` : ""} — ${r.kpdate.slice(0, 10)}`.trim(),
         fullText: chunk.text,

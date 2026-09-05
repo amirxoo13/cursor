@@ -2,17 +2,16 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { ChatResponseSource } from "@/app/api/chat/route";
+import { COUNTRY_LABEL_FA, COUNTRIES_WITH_COVERAGE } from "@/lib/countries";
 
 interface ChatTurn {
   question: string;
-  jurisdiction: Jurisdiction;
+  countryValue: string;
   answer?: string;
   sources?: ChatResponseSource[];
   error?: string;
   loading?: boolean;
 }
-
-type Jurisdiction = "ALL" | "US" | "EU";
 
 const SUGGESTED_QUESTIONS = [
   "شرایط گرین کارت خانوادگی چیه؟",
@@ -22,16 +21,26 @@ const SUGGESTED_QUESTIONS = [
   "روند رسیدگی به درخواست پناهندگی در اتحادیه اروپا چطوره؟",
 ];
 
-const JURISDICTIONS: { key: Jurisdiction; label: string }[] = [
-  { key: "ALL", label: "همه حوزه‌ها" },
-  { key: "US", label: "🇺🇸 آمریکا" },
-  { key: "EU", label: "🇪🇺 اتحادیه اروپا" },
+function flagEmoji(iso2: string): string {
+  const codePoints = [...iso2.toUpperCase()].map((c) => 127397 + c.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
+}
+
+// اول گزینه‌های عمومی، بعد کشورهایی که واقعاً در دیتابیس داده دارند
+// (مرتب‌شده با اولویت پوشش بیشتر: آمریکا و آلمان اول)
+const PRIORITY_COUNTRIES = ["US", "DE"];
+const COUNTRY_OPTIONS = [
+  { value: "ALL", label: "🌍 همه کشورها" },
+  ...PRIORITY_COUNTRIES.map((c) => ({ value: c, label: `${flagEmoji(c)} ${COUNTRY_LABEL_FA[c]}` })),
+  { value: "EU_GENERAL", label: "🇪🇺 قوانین عمومی اتحادیه اروپا" },
+  ...COUNTRIES_WITH_COVERAGE.filter((c) => !PRIORITY_COUNTRIES.includes(c))
+    .sort((a, b) => (COUNTRY_LABEL_FA[a] || a).localeCompare(COUNTRY_LABEL_FA[b] || b, "fa"))
+    .map((c) => ({ value: c, label: `${flagEmoji(c)} ${COUNTRY_LABEL_FA[c] || c}` })),
 ];
 
 const jurisdictionLabel: Record<string, string> = {
   US: "آمریکا",
   EU: "اتحادیه اروپا",
-  DE: "آلمان",
 };
 
 const sourceLabel: Record<string, string> = {
@@ -47,7 +56,7 @@ const sourceLabel: Record<string, string> = {
 
 export default function ChatPage() {
   const [input, setInput] = useState("");
-  const [jurisdiction, setJurisdiction] = useState<Jurisdiction>("ALL");
+  const [country, setCountry] = useState("ALL");
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -59,7 +68,7 @@ export default function ChatPage() {
   async function ask(question: string) {
     if (!question.trim()) return;
     setInput("");
-    setTurns((prev) => [...prev, { question, jurisdiction, loading: true }]);
+    setTurns((prev) => [...prev, { question, countryValue: country, loading: true }]);
 
     try {
       const res = await fetch("/api/chat", {
@@ -67,7 +76,7 @@ export default function ChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          jurisdiction: jurisdiction === "ALL" ? undefined : jurisdiction,
+          country: country === "ALL" ? undefined : country,
         }),
       });
       const data = await res.json();
@@ -97,30 +106,32 @@ export default function ChatPage() {
         {/* SIDEBAR */}
         <aside style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div className="card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "var(--text)" }}>
-              حوزه قضایی
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, color: "var(--text)" }}>
+              کشور موردنظرت رو انتخاب کن
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {JURISDICTIONS.map((j) => (
-                <button
-                  key={j.key}
-                  onClick={() => setJurisdiction(j.key)}
-                  style={{
-                    textAlign: "right",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid",
-                    borderColor: jurisdiction === j.key ? "var(--gold-dim)" : "var(--border)",
-                    background: jurisdiction === j.key ? "rgba(217,178,92,0.1)" : "transparent",
-                    color: jurisdiction === j.key ? "var(--gold-light)" : "var(--text-dim)",
-                    fontSize: 13.5,
-                    cursor: "pointer",
-                  }}
-                >
-                  {j.label}
-                </button>
+            <div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 12, lineHeight: 1.8 }}>
+              پاسخ‌ها بر اساس قوانین همون کشور جست‌وجو می‌شوند.
+            </div>
+            <select
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "11px 12px",
+                borderRadius: 10,
+                border: "1px solid var(--gold-dim)",
+                background: "rgba(217,178,92,0.08)",
+                color: "var(--gold-light)",
+                fontSize: 14,
+                cursor: "pointer",
+              }}
+            >
+              {COUNTRY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value} style={{ background: "var(--bg-elevated)", color: "var(--text)" }}>
+                  {opt.label}
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
           <div className="card sidebar-suggestions" style={{ padding: 20 }}>
@@ -253,7 +264,8 @@ export default function ChatPage() {
                               rel="noreferrer"
                               style={{ fontSize: 12, color: "var(--cyan)" }}
                             >
-                              [{sourceLabel[s.source] ?? s.source} · {jurisdictionLabel[s.jurisdiction] ?? s.jurisdiction}]{" "}
+                              [{sourceLabel[s.source] ?? s.source} ·{" "}
+                              {(s.country && COUNTRY_LABEL_FA[s.country]) || jurisdictionLabel[s.jurisdiction] || s.jurisdiction}]{" "}
                               {s.sectionReference || s.title || "منبع"}
                             </a>
                           ))}

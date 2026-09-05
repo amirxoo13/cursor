@@ -40,7 +40,7 @@ export type LegalSource =
   | "de_law"
   | "emn";
 
-export type Jurisdiction = "US" | "EU" | "DE" | "FR" | "IT" | "ES" | "NL" | "AT" | "BE" | "SE";
+export type Jurisdiction = "US" | "EU";
 
 export interface LegalDocumentRow {
   id: number;
@@ -97,31 +97,45 @@ export async function documentAlreadyIngested(
   return rows.length > 0;
 }
 
+export interface SearchFilters {
+  jurisdiction?: Jurisdiction;
+  /** کد ISO2 کشور (مثلاً "DE")؛ null صریح یعنی فقط اسناد بدون کشور خاص (مثل مقررات عمومی EU) */
+  country?: string | null;
+}
+
 export async function searchSimilarDocuments(
   embedding: number[],
   limit = 8,
-  jurisdiction?: Jurisdiction
+  filters: SearchFilters = {}
 ): Promise<LegalDocumentRow[]> {
   const vectorLiteral = toVectorLiteral(embedding);
-  const rows = (
-    jurisdiction
-      ? await sql`
-          SELECT id, source, jurisdiction, country, title, section_reference, full_text,
-                 source_url, last_updated,
-                 embedding <=> ${vectorLiteral}::vector AS distance
-          FROM legal_documents
-          WHERE jurisdiction = ${jurisdiction}
-          ORDER BY embedding <=> ${vectorLiteral}::vector
-          LIMIT ${limit}
-        `
-      : await sql`
-          SELECT id, source, jurisdiction, country, title, section_reference, full_text,
-                 source_url, last_updated,
-                 embedding <=> ${vectorLiteral}::vector AS distance
-          FROM legal_documents
-          ORDER BY embedding <=> ${vectorLiteral}::vector
-          LIMIT ${limit}
-        `
-  ) as unknown as LegalDocumentRow[];
+  const conditions: string[] = [];
+  const params: any[] = [vectorLiteral];
+
+  if (filters.jurisdiction) {
+    params.push(filters.jurisdiction);
+    conditions.push(`jurisdiction = $${params.length}`);
+  }
+  if (filters.country === null) {
+    conditions.push("country IS NULL");
+  } else if (filters.country) {
+    params.push(filters.country);
+    conditions.push(`country = $${params.length}`);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  params.push(limit);
+
+  const query = `
+    SELECT id, source, jurisdiction, country, title, section_reference, full_text,
+           source_url, last_updated,
+           embedding <=> $1::vector AS distance
+    FROM legal_documents
+    ${whereClause}
+    ORDER BY embedding <=> $1::vector
+    LIMIT $${params.length}
+  `;
+
+  const rows = (await sql(query, params)) as unknown as LegalDocumentRow[];
   return rows;
 }

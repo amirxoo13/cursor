@@ -2,20 +2,37 @@ import { NextRequest, NextResponse } from "next/server";
 import { embedText } from "@/lib/embeddings";
 import { searchSimilarDocuments, type LegalDocumentRow } from "@/lib/db";
 import { qwenChat, rewriteQueryForRetrieval } from "@/lib/qwen";
+import { COUNTRY_LABEL_FA } from "@/lib/countries";
 
 export const runtime = "nodejs";
 
-const SYSTEM_PROMPT_TEMPLATE = `تو یک دستیار متخصص قوانین مهاجرت اتحادیه اروپا و آمریکا هستی.
-فقط بر اساس متن‌های زیر (که از منابع رسمی بازیابی شده‌اند) به سؤال کاربر جواب بده.
-اگر متن‌های داده‌شده برای پاسخ کافی نبود، صادقانه بگو که اطلاعات کافی در دسترس نیست
-و حدس نزن.
+const SYSTEM_PROMPT_TEMPLATE = `تو «سام»، دستیار حقوقی SAMAI هستی — یک متخصص باتجربه‌ی قوانین مهاجرت اروپا
+و آمریکا که با کاربرش مثل یک دوست دلسوز و آگاه حرف می‌زند، نه مثل یک ربات
+رسمی یا یک متن قانونی خشک.
 
-قوانین پاسخ‌دهی:
-- پاسخ را کاملاً به زبان فارسیِ روان و محاوره‌ای بنویس، نه ترجمه‌ی ماشینیِ خشک
-- پاسخ باید کامل و دقیق باشد، جزئیات مهم (شرایط، مهلت‌ها، استثناها) را حذف نکن
-- زیر هر ادعا، به شماره ماده/بخش قانونی منبع اشاره کن (مثلاً «طبق 8 CFR § 204.1»)
-- در پایان پاسخ، یک خط یادآوری بنویس که این پاسخ جایگزین مشاوره حقوقی رسمی نیست
+فقط بر اساس متن‌های زیر (که از منابع رسمی بازیابی شده‌اند) جواب بده. اگر
+اطلاعات کافی نبود، صادقانه و صمیمی بگو که این بخش خاص را در منابعت پیدا
+نکردی — و اگر بخشی نزدیک ولی نه دقیقاً منطبق پیدا کردی، همان‌جا بگو که
+مطمئن نیستی دقیقاً برای وضعیت او صدق می‌کند یا نه. هرگز حدس نزن و هرگز
+چیزی را که در متن‌ها نیست به‌عنوان قطعیت جا نزن.
 
+لحن و سبک نوشتن:
+- عامیانه، گرم و دوستانه بنویس؛ انگار داری برای یک دوست یا آشنا توضیح
+  می‌دهی، نه یک گزارش اداری. از جمله‌های کوتاه و طبیعی فارسی محاوره‌ای
+  استفاده کن (نه ترجمه‌ی ماشینیِ رسمی، نه لحن حقوقیِ سنگین)
+- می‌توانی از عبارت‌هایی مثل «خب بذار برات بگم»، «نکته‌ی مهمش اینه که»،
+  «یه چیزی که خیلیا نمی‌دونن» استفاده کنی — تا حس کند با یک آدم واقعی و
+  مطلع صحبت می‌کند
+- با این حال، هرگز به‌خاطر لحن دوستانه از دقت و کامل بودن کم نکن: همه‌ی
+  شرایط، مهلت‌ها و استثناهای مهم را واضح بگو
+- زیر هر ادعا، طبیعی و در دل جمله به ماده/بخش قانونی منبع اشاره کن (مثلاً
+  «طبق ماده ۲۰۴.۱ قانون مهاجرت آمریکا...» یا «قانون اقامت آلمان، ماده ۹،
+  می‌گه که...») — نیازی نیست خشک و لیست‌وار بنویسی
+- پاسخ را با ساختار خوانا (تیتر، بولت در صورت نیاز) سازمان بده، ولی حس
+  گفت‌وگو را حفظ کن
+- در پایان، خیلی طبیعی و بدون این‌که حس رسمی بدهد، یادآوری کن که این
+  حرف‌ها جایگزین مشاوره یک وکیل واقعی نیست
+{{COUNTRY_CONTEXT}}
 متن‌های بازیابی‌شده:
 {{RETRIEVED_CHUNKS}}
 
@@ -24,12 +41,14 @@ const SYSTEM_PROMPT_TEMPLATE = `تو یک دستیار متخصص قوانین �
 interface ChatRequestBody {
   question?: string;
   jurisdiction?: "US" | "EU";
+  country?: string;
 }
 
 export interface ChatResponseSource {
   id: number;
   source: string;
   jurisdiction: string;
+  country: string | null;
   title: string | null;
   sectionReference: string | null;
   sourceUrl: string | null;
@@ -43,7 +62,8 @@ function formatRetrievedChunks(docs: LegalDocumentRow[]): string {
   return docs
     .map((doc, i) => {
       const ref = doc.section_reference || doc.title || "منبع نامشخص";
-      return `[سند ${i + 1} — ${ref}]\n${doc.full_text}`;
+      const countryTag = doc.country ? ` — کشور: ${doc.country}` : "";
+      return `[سند ${i + 1} — ${ref}${countryTag}]\n${doc.full_text}`;
     })
     .join("\n\n---\n\n");
 }
@@ -61,6 +81,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "فیلد question الزامی است" }, { status: 400 });
   }
   const jurisdiction = body.jurisdiction === "US" || body.jurisdiction === "EU" ? body.jurisdiction : undefined;
+  // country: کد ISO2 مشخص (مثلاً "DE") یا رشته خاص "EU_GENERAL" برای فقط
+  // اسناد عمومی اتحادیه اروپا بدون کشور خاص (مثل EUR-Lex/EMN).
+  const rawCountry = body.country?.trim();
+  const countryFilter: string | null | undefined =
+    rawCountry === "EU_GENERAL" ? null : rawCountry && /^[A-Z]{2}$/.test(rawCountry) ? rawCountry : undefined;
+  const countryLabel = rawCountry && rawCountry !== "EU_GENERAL" ? COUNTRY_LABEL_FA[rawCountry] : undefined;
 
   try {
     // منابع (eCFR، Federal Register، EUR-Lex و...) همه به انگلیسی‌اند. جست‌وجوی
@@ -81,7 +107,10 @@ export async function POST(req: NextRequest) {
     const bestDistanceById = new Map<number, LegalDocumentRow>();
     for (const query of retrievalQueries) {
       const embedding = await embedText(query);
-      const results = await searchSimilarDocuments(embedding, 8, jurisdiction);
+      const results = await searchSimilarDocuments(embedding, 8, {
+        jurisdiction,
+        country: countryFilter,
+      });
       for (const doc of results) {
         const existing = bestDistanceById.get(doc.id);
         if (!existing || (doc.distance ?? Infinity) < (existing.distance ?? Infinity)) {
@@ -93,10 +122,13 @@ export async function POST(req: NextRequest) {
       .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
       .slice(0, 10);
 
-    const prompt = SYSTEM_PROMPT_TEMPLATE.replace(
-      "{{RETRIEVED_CHUNKS}}",
-      formatRetrievedChunks(retrievedDocs)
-    ).replace("{{USER_QUESTION}}", question);
+    const countryContext = countryLabel
+      ? `\nکاربر گفته کشور موردنظرش «${countryLabel}» است — اگر منبع پیدا‌شده مربوط به کشور دیگری بود، این را شفاف بگو و مشخص کن که این اطلاعات دقیقاً برای همان کشور نیست.\n`
+      : "";
+
+    const prompt = SYSTEM_PROMPT_TEMPLATE.replace("{{COUNTRY_CONTEXT}}", countryContext)
+      .replace("{{RETRIEVED_CHUNKS}}", formatRetrievedChunks(retrievedDocs))
+      .replace("{{USER_QUESTION}}", question);
 
     const answer = await qwenChat([{ role: "system", content: prompt }]);
 
@@ -104,6 +136,7 @@ export async function POST(req: NextRequest) {
       id: doc.id,
       source: doc.source,
       jurisdiction: doc.jurisdiction,
+      country: doc.country,
       title: doc.title,
       sectionReference: doc.section_reference,
       sourceUrl: doc.source_url,
