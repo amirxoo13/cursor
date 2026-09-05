@@ -74,10 +74,13 @@ export default function HomePage() {
               <br />
               برای قوانین مهاجرتی اروپا و آمریکا
             </h1>
-            <p style={{ color: "var(--text-dim)", fontSize: 17, lineHeight: 2, maxWidth: 540 }}>
-              سؤال‌های خودت را درباره گرین کارت، پناهندگی، ویزا و آیین دادرسی
-              مهاجرت به فارسی بپرس. SAMAI با جست‌وجو در متن واقعی قوانین رسمی
-              اتحادیه اروپا و آمریکا، پاسخی دقیق و مستند به تو می‌دهد.
+            <p style={{ color: "var(--text-dim)", fontSize: 17, lineHeight: 2, maxWidth: 560 }}>
+              SAMAI با هدف رفاه حال هموطنان عزیزمان طراحی شده است: دستیاری
+              هوشمند که به زبان فارسیِ ساده و روان، به سؤال‌های شما درباره
+              اقامت، انواع ویزا، گرین‌کارت، پناهندگی و آیین دادرسی مهاجرت در
+              اروپا و آمریکا پاسخ می‌دهد. هر پاسخ مستقیماً بر پایه متن قوانین
+              رسمی ساخته می‌شود و زیر نظارت یک وکیل باتجربه به‌روزرسانی و
+              راهنمایی می‌شود.
             </p>
             <div style={{ display: "flex", gap: 14, marginTop: 32, flexWrap: "wrap" }}>
               <Link href="/chat" className="btn btn-primary">
@@ -127,6 +130,30 @@ export default function HomePage() {
               }}
               priority
             />
+          </div>
+        </div>
+      </section>
+
+      {/* MISSION */}
+      <section className="section" style={{ paddingTop: 0 }}>
+        <div className="container-narrow">
+          <div className="card" style={{ padding: "36px 32px" }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 16 }}>
+              دستیاری برای هر خانواده‌ای که در مسیر مهاجرت است
+            </h2>
+            <p style={{ color: "var(--text-dim)", fontSize: 15, lineHeight: 2.1 }}>
+              مهاجرت یکی از مهم‌ترین و در عین حال پیچیده‌ترین تصمیم‌های زندگی
+              هر خانواده است — پر از فرم‌های اداری، مهلت‌های حساس، اصطلاحات
+              حقوقی سنگین و قوانینی که مدام تغییر می‌کنند. بسیاری از هموطنان
+              عزیز ما، به‌خاطر ندانستن دقیق قوانین یا دسترسی‌نداشتن به منبعی
+              قابل‌اعتماد، فرصت‌های مهمی را از دست می‌دهند یا سردرگم می‌مانند.
+              SAMAI دقیقاً برای پر کردن همین خلأ ساخته شده: یک دستیار هوشمند
+              که شبانه‌روز، به زبان فارسی و با لحنی دوستانه، سؤالات شما درباره
+              اقامت، ویزاهای کاری و تحصیلی، گرین‌کارت خانوادگی، پناهندگی و
+              دهها سناریوی دیگر را بر اساس متن واقعی قوانین رسمی اتحادیه اروپا
+              و آمریکا پاسخ می‌دهد؛ و هر وقت پرونده‌ات نیاز به بررسی دقیق‌تر
+              داشته باشد، مستقیماً به یک وکیل واقعی و باتجربه وصل می‌شوی.
+            </p>
           </div>
         </div>
       </section>
@@ -206,11 +233,17 @@ export default function HomePage() {
             سؤال حقوقی مهاجرتی داری؟
           </h2>
           <p style={{ color: "var(--text-dim)", marginBottom: 28, fontSize: 15 }}>
-            همین حالا از SAMAI بپرس و پاسخ مستند به منابع رسمی را دریافت کن.
+            همین حالا از SAMAI بپرس، یا برای بررسی دقیق پرونده‌ات مستقیم با
+            تیم حقوقی ما در ارتباط باش.
           </p>
-          <Link href="/chat" className="btn btn-primary">
-            رفتن به پرسش‌وپاسخ ←
-          </Link>
+          <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
+            <Link href="/chat" className="btn btn-primary">
+              رفتن به پرسش‌وپاسخ ←
+            </Link>
+            <Link href="/contact" className="btn btn-ghost">
+              مشاوره تخصصی با وکیل
+            </Link>
+          </div>
         </div>
       </section>
 

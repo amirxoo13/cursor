@@ -1,5 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
+import SocialIcons from "./SocialIcons";
+import { LAWYER } from "@/lib/contact";
 
 export default function Footer() {
   return (
@@ -20,10 +22,12 @@ export default function Footer() {
               SAM<span style={{ color: "var(--cyan)" }}>AI</span>
             </span>
           </div>
-          <p style={{ color: "var(--text-dim)", fontSize: 13.5, lineHeight: 1.9, maxWidth: 320 }}>
+          <p style={{ color: "var(--text-dim)", fontSize: 13.5, lineHeight: 1.9, maxWidth: 320, marginBottom: 16 }}>
             Smart Attorney Mind — پلتفرم پرسش‌وپاسخ هوشمند قوانین مهاجرتی اتحادیه
-            اروپا و آمریکا، بر پایه اسناد رسمی و هوش مصنوعی.
+            اروپا و آمریکا، بر پایه اسناد رسمی و هوش مصنوعی، زیر نظر{" "}
+            {LAWYER.fullNameFa}، {LAWYER.title}.
           </p>
+          <SocialIcons />
         </div>
 
         <div>
@@ -59,8 +63,11 @@ export default function Footer() {
             ارتباط
           </div>
           <FooterLink href="/contact">تماس با ما</FooterLink>
-          <FooterLink href="mailto:contact@samai.legal" external>
-            contact@samai.legal
+          <FooterLink href={`mailto:${LAWYER.email}`} external>
+            {LAWYER.email}
+          </FooterLink>
+          <FooterLink href={`tel:${LAWYER.phoneIntl}`} external>
+            {LAWYER.phone}
           </FooterLink>
         </div>
       </div>
@@ -70,12 +77,23 @@ export default function Footer() {
           borderTop: "1px solid var(--border-soft)",
           padding: "18px 24px",
           textAlign: "center",
-          fontSize: 12.5,
+          fontSize: 13,
+          color: "var(--text-dim)",
+        }}
+      >
+        نیاز به بررسی دقیق‌تر پرونده‌ات داری؟ همین حالا برای مشاوره تخصصی و
+        اختصاصی با تیم حقوقی SAMAI تماس بگیر.
+      </div>
+
+      <div
+        style={{
+          padding: "10px 24px 16px",
+          textAlign: "center",
+          fontSize: 11.5,
           color: "var(--text-faint)",
         }}
       >
-        © {new Date().getFullYear()} SAMAI — Smart Attorney Mind. پاسخ‌های این پلتفرم جایگزین
-        مشاوره حقوقی رسمی نیستند.
+        © {new Date().getFullYear()} SAMAI — Smart Attorney Mind · Create by amirxo
       </div>
 
       <style>{`
