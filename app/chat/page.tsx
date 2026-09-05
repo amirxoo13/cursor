@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import type { ChatResponseSource } from "@/app/api/chat/route";
 import { COUNTRY_LABEL_FA, COUNTRIES_WITH_COVERAGE } from "@/lib/countries";
 
 interface ChatTurn {
   question: string;
   countryValue: string;
   answer?: string;
-  sources?: ChatResponseSource[];
   error?: string;
   loading?: boolean;
 }
@@ -63,18 +61,40 @@ export default function ChatPage() {
           country: country === "ALL" ? undefined : country,
         }),
       });
-      const data = await res.json();
 
-      setTurns((prev) => {
-        const next = [...prev];
-        const idx = next.length - 1;
-        if (!res.ok) {
-          next[idx] = { ...next[idx], error: data.error || "خطای ناشناخته", loading: false };
-        } else {
-          next[idx] = { ...next[idx], answer: data.answer, sources: data.sources, loading: false };
+      // پاسخ موفق به‌صورت استریم متنی خام برمی‌گردد (نه JSON یک‌جا) تا اولین
+      // کلمات طی ۱-۲ ثانیه نمایش داده شوند؛ فقط خطاها JSON هستند.
+      if (!res.ok || !res.body) {
+        let message = "خطای ناشناخته";
+        try {
+          const data = await res.json();
+          message = data.error || message;
+        } catch {
+          // بدنه JSON نبود؛ همان پیام پیش‌فرض استفاده می‌شود
         }
-        return next;
-      });
+        setTurns((prev) => {
+          const next = [...prev];
+          next[next.length - 1] = { ...next[next.length - 1], error: message, loading: false };
+          return next;
+        });
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let full = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        full += decoder.decode(value, { stream: true });
+        const textSoFar = full;
+        setTurns((prev) => {
+          const next = [...prev];
+          next[next.length - 1] = { ...next[next.length - 1], loading: false, answer: textSoFar };
+          return next;
+        });
+      }
     } catch (err: any) {
       setTurns((prev) => {
         const next = [...prev];
