@@ -1,4 +1,6 @@
 import Image from "next/image";
+import SocialIcons from "@/components/SocialIcons";
+import { LAWYER, CONTACT_LINKS } from "@/lib/contact";
 
 export default function AboutPage() {
   return (
@@ -8,24 +10,51 @@ export default function AboutPage() {
         SAMAI — Smart Attorney Mind
       </h1>
       <p style={{ color: "var(--text-dim)", fontSize: 15.5, lineHeight: 2, marginBottom: 36 }}>
-        SAMAI با یک هدف ساده ساخته شده: دسترسی به قوانین مهاجرتی اروپا و آمریکا
-        را برای فارسی‌زبانان شفاف، سریع و مستند کند — بدون واسطه‌ی ترجمه‌های
+        SAMAI برای رفاه حال هموطنان عزیزمان ساخته شده — تا هرکس که سؤالی
+        درباره‌ی اقامت، ویزا، پناهندگی یا هر موضوع دیگری در حوزه‌ی مهاجرت
+        اروپا و آمریکا دارد، بتواند در کوتاه‌ترین زمان و به زبان فارسیِ روان،
+        پاسخی دقیق و مستند به منابع رسمی دریافت کند؛ بدون واسطه‌ی ترجمه‌های
         ناقص یا اطلاعات پراکنده و قدیمی.
       </p>
 
-      <div className="card" style={{ padding: 28, display: "flex", gap: 20, alignItems: "center", marginBottom: 40 }}>
-        <Image
-          src="/logo.png"
-          alt="SAMAI"
-          width={84}
-          height={84}
-          style={{ borderRadius: "50%", flexShrink: 0 }}
-        />
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>Dr. S.A. Mousavi</div>
-          <div style={{ fontSize: 13, color: "var(--text-faint)", marginTop: 2 }}>
-            بنیان‌گذار و مسئول محتوای حقوقی SAMAI
+      <div className="card" style={{ padding: 28, marginBottom: 40 }}>
+        <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap", marginBottom: 18 }}>
+          <Image
+            src="/logo.png"
+            alt="SAMAI"
+            width={84}
+            height={84}
+            style={{ borderRadius: "50%", flexShrink: 0 }}
+          />
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 19 }}>{LAWYER.fullNameFa}</div>
+            <div style={{ fontSize: 13.5, color: "var(--gold-light)", marginTop: 4 }}>
+              {LAWYER.title}
+            </div>
+            <div style={{ fontSize: 12.5, color: "var(--text-faint)", marginTop: 6 }} dir="ltr">
+              {LAWYER.fullNameEn}
+            </div>
           </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gap: 14,
+            paddingTop: 18,
+            borderTop: "1px solid var(--border)",
+            marginBottom: 18,
+          }}
+        >
+          <InfoItem label="شماره پروانه" value={LAWYER.licenseNumber} />
+          <InfoItem label="نام" value={LAWYER.firstNameFa} />
+          <InfoItem label="نام خانوادگی" value={LAWYER.lastNameFa} />
+          <InfoItem label="کانون وکلا" value="مرکز" />
+        </div>
+
+        <div style={{ paddingTop: 4 }}>
+          <SocialIcons />
         </div>
       </div>
 
@@ -33,8 +62,9 @@ export default function AboutPage() {
       <p style={{ color: "var(--text-dim)", fontSize: 14.5, lineHeight: 2, marginBottom: 28 }}>
         قوانین مهاجرتی معمولاً پیچیده، پراکنده در چند منبع رسمی، و به زبانی
         حقوقیِ سنگین نوشته شده‌اند. SAMAI با ترکیب بازیابی اطلاعات از متن
-        اصلی قوانین (نه خلاصه یا حدس) و تولید پاسخ با هوش مصنوعی، تلاش می‌کند
-        این فاصله را کم کند — همیشه با ارجاع شفاف به منبع رسمی هر پاسخ.
+        اصلی قوانین (نه خلاصه یا حدس) و تولید پاسخ با هوش مصنوعی، زیر نظارت
+        مستقیم {LAWYER.fullNameFa}، تلاش می‌کند این فاصله را کم کند — همیشه
+        با ارجاع شفاف به منبع رسمی هر پاسخ.
       </p>
 
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>اصول ما</h2>
@@ -43,7 +73,7 @@ export default function AboutPage() {
           ["صداقت در عدم قطعیت", "اگر پاسخی در منابع رسمی پیدا نشود، SAMAI آن را صادقانه اعلام می‌کند و حدس نمی‌زند."],
           ["ارجاع‌پذیری", "هر ادعا باید به یک ماده، بخش یا رای قانونی مشخص قابل ردیابی باشد."],
           ["به‌روز بودن", "منابع مستقیماً از API های رسمی (نه آرشیوهای ثابت) خوانده و ایندکس می‌شوند."],
-          ["نه جایگزین وکیل", "SAMAI ابزار اطلاع‌رسانی است، نه جایگزین مشاوره حقوقی رسمی."],
+          ["همراهی واقعی", "برای پرونده‌های خاص و پیچیده، همیشه یک تیم حقوقی واقعی پشت SAMAI آماده‌ی کمک است."],
         ].map(([title, desc]) => (
           <div key={title} className="card" style={{ padding: 18 }}>
             <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 6, color: "var(--gold-light)" }}>
@@ -53,6 +83,32 @@ export default function AboutPage() {
           </div>
         ))}
       </div>
+
+      <div
+        className="card"
+        style={{
+          padding: 24,
+          background: "linear-gradient(135deg, rgba(217,178,92,0.1), rgba(52,214,232,0.06))",
+          textAlign: "center",
+        }}
+      >
+        <p style={{ fontSize: 14.5, color: "var(--text)", lineHeight: 2, marginBottom: 16 }}>
+          برای مشاوره تخصصی و بررسی دقیق پرونده‌ی مهاجرتی‌ات، همین حالا با
+          ما در ارتباط باش.
+        </p>
+        <a href={CONTACT_LINKS.whatsapp} target="_blank" rel="noreferrer" className="btn btn-primary">
+          شروع گفت‌وگو در واتس‌اپ ←
+        </a>
+      </div>
     </main>
+  );
+}
+
+function InfoItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{value}</div>
+    </div>
   );
 }

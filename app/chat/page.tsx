@@ -38,24 +38,6 @@ const COUNTRY_OPTIONS = [
     .map((c) => ({ value: c, label: `${flagEmoji(c)} ${COUNTRY_LABEL_FA[c] || c}` })),
 ];
 
-const jurisdictionLabel: Record<string, string> = {
-  US: "آمریکا",
-  EU: "اتحادیه اروپا",
-};
-
-const sourceLabel: Record<string, string> = {
-  ecfr: "eCFR",
-  federal_register: "Federal Register",
-  courtlistener: "CourtListener",
-  eurlex: "EUR-Lex",
-  hudoc: "HUDOC (ECHR)",
-  euaa: "EUAA",
-  de_law: "Gesetze im Internet",
-  emn: "EMN",
-  nl_law: "wetten.overheid.nl",
-  es_law: "BOE",
-};
-
 export default function ChatPage() {
   const [input, setInput] = useState("");
   const [country, setCountry] = useState("ALL");
@@ -162,11 +144,6 @@ export default function ChatPage() {
               ))}
             </div>
           </div>
-
-          <div style={{ fontSize: 12, color: "var(--text-faint)", lineHeight: 1.9, padding: "0 4px" }}>
-            پاسخ‌های SAMAI بر اساس متن قوانین رسمی تولید می‌شوند و جایگزین
-            مشاوره حقوقی رسمی نیستند.
-          </div>
         </aside>
 
         {/* CHAT PANEL */}
@@ -251,29 +228,6 @@ export default function ChatPage() {
                     }}
                   >
                     {turn.answer}
-
-                    {turn.sources && turn.sources.length > 0 && (
-                      <div style={{ marginTop: 16, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
-                        <div style={{ fontSize: 11.5, color: "var(--text-faint)", marginBottom: 8, fontWeight: 600 }}>
-                          منابع بازیابی‌شده
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          {turn.sources.map((s) => (
-                            <a
-                              key={s.id}
-                              href={s.sourceUrl ?? undefined}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{ fontSize: 12, color: "var(--cyan)" }}
-                            >
-                              [{sourceLabel[s.source] ?? s.source} ·{" "}
-                              {(s.country && COUNTRY_LABEL_FA[s.country]) || jurisdictionLabel[s.jurisdiction] || s.jurisdiction}]{" "}
-                              {s.sectionReference || s.title || "منبع"}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
