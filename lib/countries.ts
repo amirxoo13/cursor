@@ -40,9 +40,10 @@ export const COUNTRY_LABEL_FA: Record<string, string> = {
   LI: "لیختن‌اشتاین",
 };
 
-/** فقط کشورهایی که واقعاً در دیتابیس داده دارند (برای دراپ‌داون انتخاب کشور در چت) */
+/** فقط کشورهایی که واقعاً در دیتابیس داده دارند (برای دراپ‌داون انتخاب کشور در چت).
+ * برای US/DE/NL/ES علاوه بر آرای قضایی، متن کامل قوانین ملی هم ایندکس شده. */
 export const COUNTRIES_WITH_COVERAGE = [
-  "US", "DE", "TR", "BG", "GR", "IT", "LT", "SE", "RU", "ES", "DK", "NL",
+  "US", "DE", "NL", "ES", "TR", "BG", "GR", "IT", "LT", "SE", "RU", "DK",
   "GB", "EE", "PL", "RS", "AZ", "SK", "FI", "BE", "AL", "AM", "FR", "IE",
   "HR", "HU", "CH", "AT", "LV", "CY", "SI", "NO",
 ];
