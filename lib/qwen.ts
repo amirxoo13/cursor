@@ -9,6 +9,18 @@ export interface ChatMessage {
   content: string;
 }
 
+// اگر endpoint/توکن Qwen (مثلاً بعد از تغییر به یک endpoint یا پلن جدید)
+// واقعاً hang کند و هیچ پاسخی ندهد، fetch بدون timeout تا ابد منتظر می‌ماند و
+// کاربر برای همیشه «در حال جست‌وجو...» می‌بیند. این تایم‌اوت واقعی (نه
+// شبیه‌سازی‌شده) تضمین می‌کند حداکثر بعد از این مدت یک خطای صریح برگردد.
+const QWEN_FETCH_TIMEOUT_MS = 25_000;
+
+function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 /**
  * فراخوانی واقعی Qwen3.8-Max از طریق endpoint سازگار با OpenAI روی DashScope.
  * هیچ پاسخ ساختگی یا fallback شبیه‌سازی‌شده‌ای در صورت نبود کلید تولید نمی‌شود —
@@ -25,18 +37,32 @@ export async function qwenChat(
     );
   }
 
-  const res = await fetch(`${QWEN_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${QWEN_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: QWEN_MODEL,
-      messages,
-      temperature: options.temperature ?? 0.3,
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(
+      `${QWEN_BASE_URL}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${QWEN_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: QWEN_MODEL,
+          messages,
+          temperature: options.temperature ?? 0.3,
+        }),
+      },
+      QWEN_FETCH_TIMEOUT_MS
+    );
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      throw new Error(
+        `Qwen API (${QWEN_BASE_URL}) بعد از ${QWEN_FETCH_TIMEOUT_MS / 1000} ثانیه پاسخ نداد — احتمالاً endpoint یا کلید اشتباه/غیرفعال است.`
+      );
+    }
+    throw err;
+  }
 
   if (!res.ok) {
     const body = await res.text();
@@ -72,19 +98,33 @@ export async function qwenChatStream(
     );
   }
 
-  const res = await fetch(`${QWEN_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${QWEN_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: QWEN_MODEL,
-      messages,
-      temperature: options.temperature ?? 0.3,
-      stream: true,
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(
+      `${QWEN_BASE_URL}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${QWEN_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: QWEN_MODEL,
+          messages,
+          temperature: options.temperature ?? 0.3,
+          stream: true,
+        }),
+      },
+      QWEN_FETCH_TIMEOUT_MS
+    );
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      throw new Error(
+        `Qwen API (${QWEN_BASE_URL}) بعد از ${QWEN_FETCH_TIMEOUT_MS / 1000} ثانیه شروع به پاسخ نکرد — احتمالاً endpoint یا کلید اشتباه/غیرفعال است.`
+      );
+    }
+    throw err;
+  }
 
   if (!res.ok) {
     const body = await res.text();
