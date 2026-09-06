@@ -4,6 +4,11 @@ const HF_ENDPOINT = `https://router.huggingface.co/hf-inference/models/${HF_EMBE
 
 export const EMBEDDING_DIMENSIONS = 1024;
 
+// سرویس رایگان HF Inference API گاهی cold-start دارد (تست واقعی تا ~۷ ثانیه
+// دیده شده)؛ این تایم‌اوت سقفی واقعی می‌گذارد تا اگر سرویس کاملاً hang کرد،
+// کاربر برای همیشه منتظر نماند و خطای صریح ببیند.
+const HF_FETCH_TIMEOUT_MS = 30_000;
+
 /**
  * embedding واقعی یک متن را از HF Inference API می‌گیرد (بدون هیچ داده‌ی جعلی
  * یا شبیه‌سازی‌شده). اگر HF_TOKEN تنظیم نشده باشد، خطای صریح می‌دهد.
@@ -16,14 +21,27 @@ export async function embedText(text: string): Promise<number[]> {
     );
   }
 
-  const res = await fetch(HF_ENDPOINT, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${HF_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ inputs: text, options: { wait_for_model: true } }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), HF_FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(HF_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${HF_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ inputs: text, options: { wait_for_model: true } }),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      throw new Error(`HF Inference API بعد از ${HF_FETCH_TIMEOUT_MS / 1000} ثانیه پاسخ نداد.`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
     const body = await res.text();
