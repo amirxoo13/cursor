@@ -5,6 +5,12 @@ import { qwenChatStream, rewriteQueryForRetrieval } from "@/lib/qwen";
 import { COUNTRY_LABEL_FA } from "@/lib/countries";
 
 export const runtime = "nodejs";
+// بدون این تنظیم، Vercel از حداکثر زمان اجرای پیش‌فرض (که می‌تواند تا ۱۰-۱۵
+// ثانیه کم باشد) استفاده می‌کند و تابع را وسط کار Kill می‌کند — در حالی که
+// پروفایل واقعی نشان داد کل مسیر (بازنویسی کوئری + بازیابی + استریم کامل
+// پاسخ Qwen) می‌تواند تا ۳۰-۴۵ ثانیه طول بکشد. این مقدار سقف واقعی و امن
+// روی پلن Pro است.
+export const maxDuration = 120;
 
 const SYSTEM_PROMPT_TEMPLATE = `تو «سام»، دستیار حقوقی SAMAI هستی — یک متخصص باتجربه‌ی قوانین مهاجرت اروپا
 و آمریکا که با کاربرش مثل یک دوست دلسوز و آگاه حرف می‌زند، نه مثل یک ربات
