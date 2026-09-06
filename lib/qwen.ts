@@ -51,6 +51,13 @@ export async function qwenChat(
           model: QWEN_MODEL,
           messages,
           temperature: options.temperature ?? 0.3,
+          // qwen3.8-max یک مدل «thinking-only» است — فکر کردنش قابل خاموش شدن
+          // نیست (پارامتر enable_thinking برای این خانواده بی‌اثر است)، ولی
+          // عمقش با reasoning_effort قابل کنترل است. پیش‌فرض حساب روی سنگین‌ترین
+          // سطح (xhigh) است که خودش می‌تواند ده‌ها ثانیه طول بکشد و در جای دیگر
+          // (بازنویسی کوئری که یک قدم فرعی و سریع باید باشد) اصلاً لازم نیست.
+          // با "none" این فاز تفکر عملاً حذف/کمینه می‌شود.
+          reasoning_effort: "none",
         }),
       },
       QWEN_FETCH_TIMEOUT_MS
@@ -83,9 +90,12 @@ export async function qwenChat(
 
 /**
  * مثل qwenChat ولی به‌صورت استریم (SSE واقعی از DashScope) — برای اینکه کاربر
- * اولین تکه‌های پاسخ را طی ۱-۲ ثانیه ببیند، نه اینکه ~۱۵-۲۰ ثانیه صفحه خالی
- * بماند تا کل پاسخ آماده شود. تست واقعی نشان داد DashScope با stream:true یک
- * text/event-stream واقعی برمی‌گرداند (نه شبیه‌سازی‌شده در سمت ما).
+ * اولین تکه‌ها را طی ۱-۲ ثانیه ببیند، نه اینکه صفحه خالی بماند تا کل پاسخ آماده
+ * شود. خروجی این تابع دیگر متن خام نیست؛ NDJSON است (هر خط یک شیء
+ * {"t":"r"|"c","d":"..."}) تا هم فاز فکرکردنِ زنده‌ی مدل (reasoning_content،
+ * type "r") و هم جواب نهایی (content، type "c") جداگانه به کلاینت برسد و در
+ * UI به‌شکل متفاوت نمایش داده شوند — نه اینکه reasoning نادیده گرفته شود و
+ * کاربر در طول آن فاز هیچ‌چیزی نبیند.
  */
 export async function qwenChatStream(
   messages: ChatMessage[],
@@ -113,6 +123,14 @@ export async function qwenChatStream(
           messages,
           temperature: options.temperature ?? 0.3,
           stream: true,
+          // qwen3.8-max همیشه فکر می‌کند (thinking-only، قابل خاموش‌شدن نیست) و
+          // پیش‌فرض حساب روی سنگین‌ترین سطح (xhigh) است که ده‌ها ثانیه طول
+          // می‌کشد. برخلاف تابع qwenChat (که داخلی/نامرئی است و در آن‌جا
+          // reasoning_effort="none" گذاشتیم)، اینجا چون فاز فکرکردن قرار است
+          // زنده به کاربر نمایش داده شود (نه حذف شود)، سطح را روی "low" نگه
+          // می‌داریم: هم زمان کل معقول می‌ماند (خطر برخورد به maxDuration=120s
+          // کم می‌شود) و هم واقعاً متنی برای نمایش «مدل داره فکر می‌کنه» وجود دارد.
+          reasoning_effort: "low",
         }),
       },
       QWEN_FETCH_TIMEOUT_MS
@@ -141,6 +159,17 @@ export async function qwenChatStream(
   const encoder = new TextEncoder();
   let buffer = "";
 
+  // فرمت خروجی این استریم دیگر متن خام نیست، بلکه NDJSON است — هر خط یک
+  // JSON مستقل با شکل {"t":"r"|"c","d":"..."} است: "r" یعنی تکه‌ای از
+  // reasoning_content (فاز فکرکردنِ زنده‌ی مدل که باید در UI جدا و متفاوت
+  // نمایش داده شود تا کاربر بفهمد مدل واقعاً دارد کار می‌کند)، "c" یعنی
+  // تکه‌ای از content (جواب نهایی). این تغییر لازم بود چون قبلاً
+  // reasoning_content اصلاً خوانده نمی‌شد و در طول کل فاز فکرکردن هیچ بایتی
+  // به کاربر نمی‌رسید (به همین دلیل «API جواب نمی‌داد»).
+  function emit(controller: ReadableStreamDefaultController<Uint8Array>, type: "r" | "c", text: string) {
+    controller.enqueue(encoder.encode(JSON.stringify({ t: type, d: text }) + "\n"));
+  }
+
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
       const { done, value } = await upstreamReader.read();
@@ -158,9 +187,14 @@ export async function qwenChatStream(
         if (payload === "[DONE]") continue;
         try {
           const json = JSON.parse(payload);
-          const delta = json?.choices?.[0]?.delta?.content;
-          if (typeof delta === "string" && delta.length > 0) {
-            controller.enqueue(encoder.encode(delta));
+          const delta = json?.choices?.[0]?.delta;
+          const reasoningDelta = delta?.reasoning_content;
+          if (typeof reasoningDelta === "string" && reasoningDelta.length > 0) {
+            emit(controller, "r", reasoningDelta);
+          }
+          const contentDelta = delta?.content;
+          if (typeof contentDelta === "string" && contentDelta.length > 0) {
+            emit(controller, "c", contentDelta);
           }
         } catch {
           // خط ناقص JSON بین دو chunk شبکه بریده شده — نادیده گرفته می‌شود،

@@ -6,11 +6,12 @@ import { COUNTRY_LABEL_FA } from "@/lib/countries";
 
 export const runtime = "nodejs";
 // بدون این تنظیم، Vercel از حداکثر زمان اجرای پیش‌فرض (که می‌تواند تا ۱۰-۱۵
-// ثانیه کم باشد) استفاده می‌کند و تابع را وسط کار Kill می‌کند — در حالی که
-// پروفایل واقعی نشان داد کل مسیر (بازنویسی کوئری + بازیابی + استریم کامل
-// پاسخ Qwen) می‌تواند تا ۳۰-۴۵ ثانیه طول بکشد. این مقدار سقف واقعی و امن
-// روی پلن Pro است.
-export const maxDuration = 120;
+// ثانیه کم باشد) استفاده می‌کند و تابع را وسط کار Kill می‌کند. Qwen3.8-Max
+// یک مدل thinking-only است (فاز فکرکردنش قابل خاموش‌شدن نیست) و حتی با
+// reasoning_effort="low" ممکن است مجموع فکرکردن+بازیابی+پاسخ به ۱۵۰-۱۸۰
+// ثانیه برسد؛ این عدد را از ۱۲۰ به ۲۴۰ افزایش دادیم تا حتی سؤال‌های سنگین‌تر
+// وسط استریم قطع نشوند (سقف واقعی و مجاز روی پلن Pro).
+export const maxDuration = 240;
 
 const SYSTEM_PROMPT_TEMPLATE = `تو «سام»، دستیار حقوقی SAMAI هستی — یک متخصص باتجربه‌ی قوانین مهاجرت اروپا
 و آمریکا که با کاربرش مثل یک دوست دلسوز و آگاه حرف می‌زند، نه مثل یک ربات
@@ -135,14 +136,14 @@ export async function POST(req: NextRequest) {
       .replace("{{RETRIEVED_CHUNKS}}", formatRetrievedChunks(retrievedDocs))
       .replace("{{USER_QUESTION}}", question);
 
-    // پاسخ نهایی به‌صورت استریم واقعی برگردانده می‌شود (نه یک‌جا در انتها) —
-    // تست واقعی نشان داد تولید کامل پاسخ توسط Qwen3-Max می‌تواند ۱۵-۲۰ ثانیه
-    // طول بکشد؛ با استریم، اولین کلمات طی ۱-۲ ثانیه به کاربر می‌رسند و او در
-    // حین تولید باقی پاسخ، شروع به خواندن می‌کند.
+    // پاسخ نهایی به‌صورت استریم NDJSON برگردانده می‌شود (نه متن خام، نه یک‌جا
+    // در انتها) — هر خط یک شیء {"t":"r"|"c","d":"..."} است: "r" تکه‌ای از
+    // فکرکردنِ زنده‌ی مدل (که در UI باید جدا و به‌شکل «در حال فکر کردن...»
+    // نمایش داده شود)، "c" تکه‌ای از جواب نهایی. جزئیات در lib/qwen.ts.
     const stream = await qwenChatStream([{ role: "system", content: prompt }]);
     return new NextResponse(stream, {
       headers: {
-        "Content-Type": "text/plain; charset=utf-8",
+        "Content-Type": "application/x-ndjson; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
       },
     });

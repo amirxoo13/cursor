@@ -6,6 +6,7 @@ import { COUNTRY_LABEL_FA, COUNTRIES_WITH_COVERAGE } from "@/lib/countries";
 interface ChatTurn {
   question: string;
   countryValue: string;
+  thinking?: string;
   answer?: string;
   error?: string;
   loading?: boolean;
@@ -62,8 +63,11 @@ export default function ChatPage() {
         }),
       });
 
-      // پاسخ موفق به‌صورت استریم متنی خام برمی‌گردد (نه JSON یک‌جا) تا اولین
-      // کلمات طی ۱-۲ ثانیه نمایش داده شوند؛ فقط خطاها JSON هستند.
+      // پاسخ موفق به‌صورت استریم NDJSON برمی‌گردد (نه متن خام، نه JSON یک‌جا) —
+      // هر خط یک شیء {"t":"r"|"c","d":"..."} است. "r" یعنی تکه‌ای از فکرکردنِ
+      // زنده‌ی مدل (نمایش داده می‌شود تا کاربر مطمئن شود مدل واقعاً دارد کار
+      // می‌کند، نه اینکه یک پیام ثابت و بی‌حرکت ببیند)، "c" یعنی تکه‌ای از
+      // جواب نهایی. فقط خطاها JSON معمولی (یک‌جا، نه استریم) هستند.
       if (!res.ok || !res.body) {
         let message = "خطای ناشناخته";
         try {
@@ -82,16 +86,40 @@ export default function ChatPage() {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let full = "";
+      let lineBuffer = "";
+      let thinkingSoFar = "";
+      let answerSoFar = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        full += decoder.decode(value, { stream: true });
-        const textSoFar = full;
+        lineBuffer += decoder.decode(value, { stream: true });
+        const lines = lineBuffer.split("\n");
+        lineBuffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let parsed: { t?: string; d?: string };
+          try {
+            parsed = JSON.parse(line);
+          } catch {
+            continue;
+          }
+          if (parsed.t === "r" && typeof parsed.d === "string") {
+            thinkingSoFar += parsed.d;
+          } else if (parsed.t === "c" && typeof parsed.d === "string") {
+            answerSoFar += parsed.d;
+          }
+        }
         setTurns((prev) => {
           const next = [...prev];
-          next[next.length - 1] = { ...next[next.length - 1], loading: false, answer: textSoFar };
+          next[next.length - 1] = {
+            ...next[next.length - 1],
+            // تا وقتی جواب واقعی شروع نشده، همچنان loading می‌ماند (تا حباب
+            // متن فکرکردن به‌جای حباب پاسخ نهایی نمایش داده شود)
+            loading: answerSoFar.length === 0,
+            thinking: thinkingSoFar || undefined,
+            answer: answerSoFar || undefined,
+          };
           return next;
         });
       }
@@ -212,9 +240,35 @@ export default function ChatPage() {
                 </div>
 
                 {turn.loading && (
-                  <div style={{ color: "var(--text-dim)", fontSize: 13.5, display: "flex", alignItems: "center", gap: 8 }}>
-                    <span className="pulse-dot" /> در حال جست‌وجو در منابع رسمی و تولید پاسخ...
-                  </div>
+                  turn.thinking ? (
+                    <div
+                      style={{
+                        alignSelf: "flex-start",
+                        background: "var(--bg-elevated-2)",
+                        border: "1px dashed var(--gold-dim)",
+                        borderRadius: "16px 16px 16px 3px",
+                        padding: "13px 16px",
+                        maxWidth: "90%",
+                        fontSize: 13.5,
+                        lineHeight: 1.9,
+                        color: "var(--text-dim)",
+                        fontStyle: "italic",
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, fontStyle: "normal" }}>
+                        <span className="pulse-dot" />
+                        <span style={{ fontWeight: 700, color: "var(--gold-light)", fontSize: 12.5 }}>
+                          🤔 در حال فکر کردن...
+                        </span>
+                      </div>
+                      {turn.thinking}
+                    </div>
+                  ) : (
+                    <div style={{ color: "var(--text-dim)", fontSize: 13.5, display: "flex", alignItems: "center", gap: 8 }}>
+                      <span className="pulse-dot" /> در حال جست‌وجو در منابع رسمی...
+                    </div>
+                  )
                 )}
 
                 {turn.error && (
